@@ -12,7 +12,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const priceFeedQuoteAddress = {
         rinkeby: "ChainlinkPriceFeedETHUSD",
         shibuya: "DiaPriceFeedASTRUSD",
-        zksync2_testnet: "UniswapV2PriceFeedETHUSD",
+        zksync2_testnet: "DebugPriceFeedETHUSD",
     }[hre.network.name]
 
     const markets = {
