@@ -94,7 +94,7 @@ if (process.env.TESTNET_PRIVATE_KEY) {
     config.networks.mumbai = {
         url: "https://rpc-mumbai.maticvigil.com",
         accounts: [process.env.TESTNET_PRIVATE_KEY],
-        gasMultiplier: 2,
+        gasMultiplier: 4,
     }
 
     config.networks.fuji = {
