@@ -10,6 +10,8 @@ contract DebugPerpdexExchange is PerpdexExchange {
     uint256 private constant _SHIBUYA_CHAIN_ID = 81;
     // https://v2-docs.zksync.io/dev/zksync-v2/temp-limits.html#temporarily-simulated-by-constant-values
     uint256 private constant _ZKSYNC2_TESTNET_CHAIN_ID = 0;
+    uint256 private constant _ARBITRUM_RINKEBY_CHAIN_ID = 421611;
+    uint256 private constant _OPTIMISM_KOVAN_CHAIN_ID = 69;
 
     constructor(address settlementTokenArg) PerpdexExchange(settlementTokenArg) {
         uint256 chainId;
@@ -20,7 +22,9 @@ contract DebugPerpdexExchange is PerpdexExchange {
             chainId == _RINKEBY_CHAIN_ID ||
                 chainId == _MUMBAI_CHAIN_ID ||
                 chainId == _SHIBUYA_CHAIN_ID ||
-                chainId == _ZKSYNC2_TESTNET_CHAIN_ID,
+                chainId == _ZKSYNC2_TESTNET_CHAIN_ID ||
+                chainId == _ARBITRUM_RINKEBY_CHAIN_ID ||
+                chainId == _OPTIMISM_KOVAN_CHAIN_ID,
             "DPE_C: testnet only"
         );
     }

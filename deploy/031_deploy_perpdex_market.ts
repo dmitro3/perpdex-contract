@@ -14,6 +14,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         mumbai: "ChainlinkPriceFeedMATICUSD",
         shibuya: "DiaPriceFeedASTRUSD",
         zksync2_testnet: "DebugPriceFeedETHUSD",
+        arbitrum_rinkeby: "ChainlinkPriceFeedETHUSD",
+        optimism_kovan: "ChainlinkPriceFeedETHUSD",
     }[hre.network.name]
 
     const markets = {
@@ -64,6 +66,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             },
         ],
         zksync2_testnet: [
+            {
+                symbol: "USD",
+                priceFeedBase: hre.ethers.constants.AddressZero,
+            },
+        ],
+        optimism_kovan: [
+            {
+                symbol: "USD",
+                priceFeedBase: hre.ethers.constants.AddressZero,
+            },
+        ],
+        arbitrum_rinkeby: [
             {
                 symbol: "USD",
                 priceFeedBase: hre.ethers.constants.AddressZero,
