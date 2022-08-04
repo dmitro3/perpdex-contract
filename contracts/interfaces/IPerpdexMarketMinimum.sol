@@ -20,6 +20,14 @@ interface IPerpdexMarketMinimum {
 
     function removeLiquidity(uint256 liquidity) external returns (uint256 baseShare, uint256 quoteBalance);
 
+    function createLimitOrder(
+        bool isBid,
+        uint256 baseShare,
+        uint256 priceX96
+    ) external returns (uint256 orderId);
+
+    function cancelLimitOrder(bool isBid, uint256 orderId) external;
+
     // getters
 
     function previewSwap(
@@ -50,4 +58,13 @@ interface IPerpdexMarketMinimum {
     function getCumDeleveragedPerLiquidityX96() external view returns (uint256, uint256);
 
     function baseBalancePerShareX96() external view returns (uint256);
+
+    function getLimitOrderInfo(bool isBid, uint256 orderId)
+        external
+        view
+        returns (
+            bool fullyExecuted,
+            int256 executedBase,
+            int256 executedQuote
+        );
 }

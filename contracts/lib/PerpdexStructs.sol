@@ -13,6 +13,13 @@ library PerpdexStructs {
         uint256 cumQuotePerLiquidityX96;
     }
 
+    struct LimitOrderInfo {
+        uint256 orderId;
+        int256 settledBaseShare;
+        int256 settledQuote;
+        bool isBid;
+    }
+
     struct VaultInfo {
         int256 collateralBalance;
     }
@@ -22,6 +29,8 @@ library PerpdexStructs {
         mapping(address => TakerInfo) takerInfos;
         // market
         mapping(address => MakerInfo) makerInfos;
+        // market
+        mapping(address => LimitOrderInfo[]) limitOrderInfos;
         VaultInfo vaultInfo;
         address[] markets;
     }

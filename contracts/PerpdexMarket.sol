@@ -5,15 +5,18 @@ pragma abicoder v2;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { IPerpdexMarket } from "./interfaces/IPerpdexMarket.sol";
 import { MarketStructs } from "./lib/MarketStructs.sol";
 import { FundingLibrary } from "./lib/FundingLibrary.sol";
 import { PoolLibrary } from "./lib/PoolLibrary.sol";
 import { PriceLimitLibrary } from "./lib/PriceLimitLibrary.sol";
+import { OrderBookLibrary } from "./lib/OrderBookLibrary.sol";
 
 contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     using Address for address;
+    using SafeCast for uint256;
     using SafeMath for uint256;
 
     event PoolFeeRatioChanged(uint24 value);
@@ -36,6 +39,8 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     MarketStructs.PoolInfo public poolInfo;
     MarketStructs.FundingInfo public fundingInfo;
     MarketStructs.PriceLimitInfo public priceLimitInfo;
+    OrderBookLibrary.OrderBookSideInfo orderBookInfoAsk;
+    OrderBookLibrary.OrderBookSideInfo orderBookInfoBid;
 
     uint24 public poolFeeRatio = 3e3;
     uint24 public fundingMaxPremiumRatio = 1e4;
@@ -82,6 +87,10 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         (uint256 maxAmount, MarketStructs.PriceLimitInfo memory updated) =
             _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
         require(amount <= maxAmount, "PM_S: too large amount");
+
+        // TODO:
+        // do previewSwap
+        // do swap with previewSwap output (pool exchanged amount, key, amount)
 
         oppositeAmount = PoolLibrary.swap(
             poolInfo,
@@ -140,6 +149,56 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         _processFunding();
     }
 
+    function createLimitOrder(
+        bool isBid,
+        uint256 baseShare,
+        uint256 priceX96
+    ) external override onlyExchange nonReentrant returns (uint256 orderId) {
+        if (isBid) {
+            orderId = OrderBookLibrary.createOrder(
+                orderBookInfoAsk,
+                baseShare,
+                priceX96,
+                orderBookLessThanAsk,
+                orderBookAggregateAsk
+            );
+        } else {
+            orderId = OrderBookLibrary.createOrder(
+                orderBookInfoBid,
+                baseShare,
+                priceX96,
+                orderBookLessThanBid,
+                orderBookAggregateBid
+            );
+        }
+        // TODO: emit event
+    }
+
+    function cancelLimitOrder(bool isBid, uint256 orderId) external override onlyExchange nonReentrant {
+        if (isBid) {
+            OrderBookLibrary.cancelOrder(orderBookInfoBid, orderId.toUint40(), orderBookAggregateBid);
+        } else {
+            OrderBookLibrary.cancelOrder(orderBookInfoAsk, orderId.toUint40(), orderBookAggregateAsk);
+        }
+        // TODO: emit event
+    }
+
+    function orderBookLessThanAsk(uint40 key0, uint40 key1) private view returns (bool) {
+        return OrderBookLibrary.lessThan(orderBookInfoAsk, true, key0, key1);
+    }
+
+    function orderBookLessThanBid(uint40 key0, uint40 key1) private view returns (bool) {
+        return OrderBookLibrary.lessThan(orderBookInfoBid, false, key0, key1);
+    }
+
+    function orderBookAggregateAsk(uint40 key) private returns (bool stop) {
+        return OrderBookLibrary.aggregate(orderBookInfoAsk, key);
+    }
+
+    function orderBookAggregateBid(uint40 key) private returns (bool stop) {
+        return OrderBookLibrary.aggregate(orderBookInfoBid, key);
+    }
+
     function setPoolFeeRatio(uint24 value) external onlyOwner nonReentrant {
         require(value <= 5e4, "PM_SPFR: too large");
         poolFeeRatio = value;
@@ -189,17 +248,56 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         (uint256 maxAmount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
         require(amount <= maxAmount, "PM_PS: too large amount");
 
-        oppositeAmount = PoolLibrary.previewSwap(
-            poolInfo.base,
-            poolInfo.quote,
-            PoolLibrary.SwapParams({
-                isBaseToQuote: isBaseToQuote,
-                isExactInput: isExactInput,
-                amount: amount,
-                feeRatio: poolFeeRatio
-            }),
-            false
-        );
+        if (isBaseToQuote) {
+            oppositeAmount = OrderBookLibrary.previewSwap(
+                orderBookInfoBid,
+                isBaseToQuote,
+                isExactInput,
+                amount,
+                false,
+                poolPreviewSwap
+            );
+        } else {
+            oppositeAmount = OrderBookLibrary.previewSwap(
+                orderBookInfoAsk,
+                isBaseToQuote,
+                isExactInput,
+                amount,
+                false,
+                poolPreviewSwap
+            );
+        }
+
+        //        oppositeAmount = PoolLibrary.previewSwap(
+        //            poolInfo.base,
+        //            poolInfo.quote,
+        //            PoolLibrary.SwapParams({
+        //                isBaseToQuote: isBaseToQuote,
+        //                isExactInput: isExactInput,
+        //                amount: amount,
+        //                feeRatio: poolFeeRatio
+        //            }),
+        //            false
+        //        );
+    }
+
+    function poolPreviewSwap(
+        bool isBaseToQuote,
+        bool isExactInput,
+        uint256 amount
+    ) private view returns (uint256) {
+        return
+            PoolLibrary.previewSwap(
+                poolInfo.base,
+                poolInfo.quote,
+                PoolLibrary.SwapParams({
+                    isBaseToQuote: isBaseToQuote,
+                    isExactInput: isExactInput,
+                    amount: amount,
+                    feeRatio: poolFeeRatio
+                }),
+                false
+            );
     }
 
     function maxSwap(
@@ -245,6 +343,23 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     function getMarkPriceX96() public view override returns (uint256) {
         if (poolInfo.base == 0) return 0;
         return PoolLibrary.getMarkPriceX96(poolInfo.base, poolInfo.quote, poolInfo.baseBalancePerShareX96);
+    }
+
+    function getLimitOrderInfo(bool isBid, uint256 orderId)
+        external
+        view
+        override
+        returns (
+            bool fullyExecuted,
+            int256 executedBase,
+            int256 executedQuote
+        )
+    {
+        if (isBid) {
+            return OrderBookLibrary.getOrderInfo(orderBookInfoBid, orderId.toUint40());
+        } else {
+            return OrderBookLibrary.getOrderInfo(orderBookInfoAsk, orderId.toUint40());
+        }
     }
 
     function _processFunding() internal {
@@ -300,5 +415,11 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
             poolFeeRatio,
             sharePriceBound
         );
+
+        if (isBaseToQuote) {
+            amount += OrderBookLibrary.maxSwap(orderBookInfoBid, isBaseToQuote, isExactInput, sharePriceBound);
+        } else {
+            amount += OrderBookLibrary.maxSwap(orderBookInfoAsk, isBaseToQuote, isExactInput, sharePriceBound);
+        }
     }
 }

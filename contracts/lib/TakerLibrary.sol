@@ -11,6 +11,7 @@ import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpMath } from "./PerpMath.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
 import { AccountLibrary } from "./AccountLibrary.sol";
+import { AccountPreviewLibrary } from "./AccountPreviewLibrary.sol";
 
 library TakerLibrary {
     using PerpMath for int256;
@@ -119,36 +120,13 @@ library TakerLibrary {
         int256 quoteFee,
         uint8 maxMarketsPerAccount
     ) internal returns (int256 realizedPnl) {
-        PerpdexStructs.TakerInfo storage takerInfo = accountInfo.takerInfos[market];
-
-        if (baseShare != 0 || quoteBalance != 0) {
-            require(baseShare.sign() * quoteBalance.sign() == -1, "TL_ATTB: invalid input");
-
-            if (takerInfo.baseBalanceShare.sign() * baseShare.sign() == -1) {
-                uint256 baseAbs = baseShare.abs();
-                uint256 takerBaseAbs = takerInfo.baseBalanceShare.abs();
-
-                if (baseAbs <= takerBaseAbs) {
-                    int256 reducedOpenNotional = takerInfo.quoteBalance.mulDiv(baseAbs.toInt256(), takerBaseAbs);
-                    realizedPnl = quoteBalance.add(reducedOpenNotional);
-                } else {
-                    int256 closedPositionNotional = quoteBalance.mulDiv(takerBaseAbs.toInt256(), baseAbs);
-                    realizedPnl = takerInfo.quoteBalance.add(closedPositionNotional);
-                }
-            }
-        }
-        realizedPnl = realizedPnl.add(quoteFee);
-
-        int256 newBaseBalanceShare = takerInfo.baseBalanceShare.add(baseShare);
-        int256 newQuoteBalance = takerInfo.quoteBalance.add(quoteBalance).add(quoteFee).sub(realizedPnl);
-        require(
-            (newBaseBalanceShare == 0 && newQuoteBalance == 0) ||
-                newBaseBalanceShare.sign() * newQuoteBalance.sign() == -1,
-            "TL_ATTB: never occur"
+        (accountInfo.takerInfos[market], realizedPnl) = AccountPreviewLibrary.previewAddToTakerBalance(
+            accountInfo.takerInfos[market],
+            baseShare,
+            quoteBalance,
+            quoteFee
         );
 
-        takerInfo.baseBalanceShare = newBaseBalanceShare;
-        takerInfo.quoteBalance = newQuoteBalance;
         accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(realizedPnl);
 
         AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);

@@ -11,6 +11,7 @@ import { IPerpdexMarketMinimum } from "./interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./lib/PerpdexStructs.sol";
 import { AccountLibrary } from "./lib/AccountLibrary.sol";
 import { MakerLibrary } from "./lib/MakerLibrary.sol";
+import { MakerOrderBookLibrary } from "./lib/MakerOrderBookLibrary.sol";
 import { TakerLibrary } from "./lib/TakerLibrary.sol";
 import { VaultLibrary } from "./lib/VaultLibrary.sol";
 import { PerpMath } from "./lib/PerpMath.sol";
@@ -100,6 +101,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkMarketAllowed(params.market)
         returns (uint256 oppositeAmount)
     {
+        _settleLimitOrders(params.trader, params.market);
         TakerLibrary.TradeResponse memory response = _doTrade(params);
 
         uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
@@ -149,6 +151,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         )
     {
         address trader = _msgSender();
+        _settleLimitOrders(trader, params.market);
 
         MakerLibrary.AddLiquidityResponse memory response =
             MakerLibrary.addLiquidity(
@@ -191,6 +194,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkMarketAllowed(params.market)
         returns (uint256 base, uint256 quote)
     {
+        _settleLimitOrders(params.trader, params.market);
+
         MakerLibrary.RemoveLiquidityResponse memory response =
             MakerLibrary.removeLiquidity(
                 accountInfos[params.trader],
@@ -223,6 +228,66 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         );
 
         return (response.base, response.quote);
+    }
+
+    function createLimitOrder(CreateLimitOrderParams calldata params)
+        external
+        //    override
+        nonReentrant
+        checkDeadline(params.deadline)
+        checkMarketAllowed(params.market)
+        returns (uint256 orderId)
+    {
+        address trader = _msgSender();
+        _settleLimitOrders(trader, params.market);
+
+        orderId = MakerOrderBookLibrary.createLimitOrder(
+            accountInfos[trader],
+            MakerOrderBookLibrary.CreateLimitOrderParams({
+                market: params.market,
+                isBid: params.isBid,
+                base: params.base,
+                priceX96: params.priceX96,
+                imRatio: imRatio,
+                maxMarketsPerAccount: maxMarketsPerAccount
+            })
+        );
+
+        emit LimitOrderCreated(trader, params.market, params.isBid, params.base, params.priceX96, orderId);
+    }
+
+    function cancelLimitOrder(CancelLimitOrderParams calldata params)
+        external
+        //    override
+        nonReentrant
+        checkDeadline(params.deadline)
+        checkMarketAllowed(params.market)
+    {
+        _settleLimitOrders(params.trader, params.market);
+
+        bool isLiquidation =
+            MakerOrderBookLibrary.cancelLimitOrder(
+                accountInfos[params.trader],
+                MakerOrderBookLibrary.CancelLimitOrderParams({
+                    market: params.market,
+                    isBid: params.isBid,
+                    orderId: params.orderId,
+                    isSelf: params.trader == _msgSender(),
+                    mmRatio: mmRatio,
+                    maxMarketsPerAccount: maxMarketsPerAccount
+                })
+            );
+
+        emit LimitOrderCanceled(
+            params.trader,
+            params.market,
+            isLiquidation ? _msgSender() : address(0),
+            params.orderId
+        );
+    }
+
+    function _settleLimitOrders(address trader, address market) private {
+        MakerOrderBookLibrary.settleLimitOrders(accountInfos[trader], market, maxMarketsPerAccount);
     }
 
     function setMaxMarketsPerAccount(uint8 value) external override onlyOwner nonReentrant {
@@ -343,8 +408,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     // convenient getters
 
-    function getTotalAccountValue(address trader) external view override returns (int256) {
-        return AccountLibrary.getTotalAccountValue(accountInfos[trader]);
+    function getTotalAccountValue(address trader) external view override returns (int256 accountValue) {
+        (accountValue, ) = AccountLibrary.getTotalAccountValue(accountInfos[trader]);
     }
 
     function getPositionShare(address trader, address market) external view override returns (int256) {
