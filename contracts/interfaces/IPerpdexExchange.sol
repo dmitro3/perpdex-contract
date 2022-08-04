@@ -77,9 +77,7 @@ interface IPerpdexExchange {
         uint256 quote,
         uint256 liquidity,
         uint256 cumBasePerLiquidityX96,
-        uint256 cumQuotePerLiquidityX96,
-        uint256 baseBalancePerShareX96,
-        uint256 sharePriceAfterX96
+        uint256 cumQuotePerLiquidityX96
     );
 
     event LiquidityRemoved(
@@ -91,9 +89,7 @@ interface IPerpdexExchange {
         uint256 liquidity,
         int256 takerBase,
         int256 takerQuote,
-        int256 realizedPnl,
-        uint256 baseBalancePerShareX96,
-        uint256 sharePriceAfterX96
+        int256 realizedPnl
     );
 
     event PartiallyExecuted(
