@@ -78,7 +78,6 @@ library OrderBookLibrary {
     function isExecuted(OrderBookSideInfo storage info, uint40 key) internal view returns (bool) {
         require(info.tree.exists(key), "not exist");
         while (key != 0) {
-            // TODO: use EMPTY
             if (key == info.tree.root) {
                 return false;
             }
@@ -149,7 +148,26 @@ library OrderBookLibrary {
         bool isBaseToQuote,
         bool isExactInput,
         uint256 priceBoundX96
-    ) internal view returns (uint256) {
-        return 0;
+    ) internal view returns (uint256 amount) {
+        bool isBid = isBaseToQuote;
+        bool isBase = isBaseToQuote == isExactInput;
+        uint40 key = info.tree.root;
+
+        while (key != 0) {
+            uint128 price = userDataToPriceX96(info.tree.nodes[key].userData);
+            if (isBid ? price >= priceBoundX96 : price <= priceBoundX96) {
+                uint40 left = info.tree.nodes[key].left;
+                if (isBase) {
+                    amount += info.orderInfos[left].baseSum + info.orderInfos[key].base;
+                } else {
+                    amount +=
+                        info.orderInfos[left].quoteSum +
+                        PRBMath.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
+                }
+                key = info.tree.nodes[key].right;
+            } else {
+                key = info.tree.nodes[key].left;
+            }
+        }
     }
 }
