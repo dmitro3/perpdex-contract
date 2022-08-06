@@ -85,6 +85,13 @@ library MakerOrderBookLibrary {
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
     }
 
+    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) internal {
+        address[] storage markets = accountInfo.markets;
+        for (uint256 i = markets.length; i-- > 0; ) {
+            settleLimitOrders(accountInfo, markets[i], maxMarketsPerAccount);
+        }
+    }
+
     function settleLimitOrders(
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
@@ -93,14 +100,11 @@ library MakerOrderBookLibrary {
         bool currentIsLong = accountInfo.takerInfos[market].baseBalanceShare >= 0;
 
         PerpdexStructs.LimitOrderInfo[] storage limitOrderInfos = accountInfo.limitOrderInfos[market];
-        uint256 length = limitOrderInfos.length;
         int256 firstSettlingBase;
         int256 firstSettlingQuote;
         int256 secondSettlingBase;
         int256 secondSettlingQuote;
-        for (int256 i2 = length.toInt256() - 1; i2 >= 0; --i2) {
-            uint256 i = i2.toUint256();
-
+        for (uint256 i = limitOrderInfos.length; i-- > 0; ) {
             (bool fullyExecuted, int256 executedBase, int256 executedQuote) =
                 IPerpdexMarketMinimum(market).getLimitOrderInfo(limitOrderInfos[i].isBid, limitOrderInfos[i].orderId);
 
@@ -116,7 +120,7 @@ library MakerOrderBookLibrary {
             }
 
             if (fullyExecuted) {
-                limitOrderInfos[i] = limitOrderInfos[length - 1];
+                limitOrderInfos[i] = limitOrderInfos[limitOrderInfos.length - 1];
                 limitOrderInfos.pop();
             } else {
                 limitOrderInfos[i].settledBaseShare = executedBase;

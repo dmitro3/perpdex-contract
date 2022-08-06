@@ -66,14 +66,11 @@ library AccountPreviewLibrary {
         takerInfo = accountInfo.takerInfos[market];
 
         PerpdexStructs.LimitOrderInfo[] storage limitOrderInfos = accountInfo.limitOrderInfos[market];
-        uint256 length = limitOrderInfos.length;
         int256 firstSettlingBase;
         int256 firstSettlingQuote;
         int256 secondSettlingBase;
         int256 secondSettlingQuote;
-        for (int256 i2 = length.toInt256() - 1; i2 >= 0; --i2) {
-            uint256 i = i2.toUint256();
-
+        for (uint256 i = limitOrderInfos.length - 1; i-- > 0; ) {
             (, int256 executedBase, int256 executedQuote) =
                 IPerpdexMarketMinimum(market).getLimitOrderInfo(limitOrderInfos[i].isBid, limitOrderInfos[i].orderId);
 

@@ -57,6 +57,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function deposit(uint256 amount) external payable override nonReentrant {
         address trader = _msgSender();
+        _settleLimitOrders(trader);
 
         if (settlementToken == address(0)) {
             require(amount == 0, "PE_D: amount not zero");
@@ -74,6 +75,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function withdraw(uint256 amount) external override nonReentrant {
         address payable trader = payable(_msgSender());
+        _settleLimitOrders(trader);
 
         VaultLibrary.withdraw(
             accountInfos[trader],
@@ -89,6 +91,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function transferProtocolFee(uint256 amount) external override onlyOwner nonReentrant {
         address trader = _msgSender();
+        _settleLimitOrders(trader);
         VaultLibrary.transferProtocolFee(accountInfos[trader], protocolInfo, amount);
         emit ProtocolFeeTransferred(trader, amount);
     }
@@ -101,7 +104,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkMarketAllowed(params.market)
         returns (uint256 oppositeAmount)
     {
-        _settleLimitOrders(params.trader, params.market);
+        _settleLimitOrders(params.trader);
         TakerLibrary.TradeResponse memory response = _doTrade(params);
 
         uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
@@ -151,7 +154,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         )
     {
         address trader = _msgSender();
-        _settleLimitOrders(trader, params.market);
+        _settleLimitOrders(trader);
 
         MakerLibrary.AddLiquidityResponse memory response =
             MakerLibrary.addLiquidity(
@@ -194,7 +197,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkMarketAllowed(params.market)
         returns (uint256 base, uint256 quote)
     {
-        _settleLimitOrders(params.trader, params.market);
+        _settleLimitOrders(params.trader);
 
         MakerLibrary.RemoveLiquidityResponse memory response =
             MakerLibrary.removeLiquidity(
@@ -239,7 +242,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         returns (uint256 orderId)
     {
         address trader = _msgSender();
-        _settleLimitOrders(trader, params.market);
+        _settleLimitOrders(trader);
 
         orderId = MakerOrderBookLibrary.createLimitOrder(
             accountInfos[trader],
@@ -263,7 +266,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
     {
-        _settleLimitOrders(params.trader, params.market);
+        _settleLimitOrders(params.trader);
 
         bool isLiquidation =
             MakerOrderBookLibrary.cancelLimitOrder(
@@ -286,8 +289,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         );
     }
 
-    function _settleLimitOrders(address trader, address market) private {
-        MakerOrderBookLibrary.settleLimitOrders(accountInfos[trader], market, maxMarketsPerAccount);
+    function _settleLimitOrders(address trader) private {
+        MakerOrderBookLibrary.settleLimitOrdersAll(accountInfos[trader], maxMarketsPerAccount);
     }
 
     function setMaxMarketsPerAccount(uint8 value) external override onlyOwner nonReentrant {
