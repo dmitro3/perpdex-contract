@@ -187,7 +187,10 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         uint256 base,
         uint256 priceX96
     ) external override onlyExchange nonReentrant returns (uint256 orderId) {
+        uint256 markPrice = getMarkPriceX96();
+
         if (isBid) {
+            require(priceX96 <= markPrice, "PM_CLO: post only bid");
             orderId = OrderBookLibrary.createOrder(
                 orderBookInfoBid,
                 base,
@@ -196,6 +199,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
                 orderBookAggregateBid
             );
         } else {
+            require(priceX96 >= markPrice, "PM_CLO: post only ask");
             orderId = OrderBookLibrary.createOrder(
                 orderBookInfoAsk,
                 base,
