@@ -24,18 +24,6 @@ library OrderBookLibrary {
     using SignedSafeMath for int256;
     using RBTreeLibrary for RBTreeLibrary.Tree;
 
-    struct OrderInfo {
-        uint256 base;
-        uint256 baseSum;
-        uint256 quoteSum;
-    }
-
-    struct OrderBookSideInfo {
-        RBTreeLibrary.Tree tree;
-        uint40 seqKey;
-        mapping(uint40 => OrderInfo) orderInfos;
-    }
-
     struct PreviewSwapResponse {
         uint256 basePool;
         uint256 quotePool;
@@ -47,7 +35,7 @@ library OrderBookLibrary {
     }
 
     function createOrder(
-        OrderBookSideInfo storage info,
+        MarketStructs.OrderBookSideInfo storage info,
         uint256 base,
         uint256 priceX96,
         function(uint40, uint40) view returns (bool) lessThanArg,
@@ -62,7 +50,7 @@ library OrderBookLibrary {
     }
 
     function cancelOrder(
-        OrderBookSideInfo storage info,
+        MarketStructs.OrderBookSideInfo storage info,
         uint40 key,
         function(uint40) returns (bool) aggregateArg
     ) internal {
@@ -71,7 +59,7 @@ library OrderBookLibrary {
         delete info.orderInfos[key];
     }
 
-    function getOrderInfo(OrderBookSideInfo storage info, uint40 key)
+    function getOrderInfo(MarketStructs.OrderBookSideInfo storage info, uint40 key)
         internal
         view
         returns (
@@ -85,8 +73,8 @@ library OrderBookLibrary {
         // TODO: implement
     }
 
-    function isExecuted(OrderBookSideInfo storage info, uint40 key) internal view returns (bool) {
-        require(info.tree.exists(key), "not exist");
+    function isExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) internal view returns (bool) {
+        require(info.tree.exists(key), "OBL_IE: not exist");
         while (key != 0) {
             if (key == info.tree.root) {
                 return false;
@@ -109,7 +97,7 @@ library OrderBookLibrary {
     }
 
     function lessThan(
-        OrderBookSideInfo storage info,
+        MarketStructs.OrderBookSideInfo storage info,
         bool isBid,
         uint40 key0,
         uint40 key1
@@ -123,7 +111,7 @@ library OrderBookLibrary {
         return isBid ? price0 > price1 : price0 < price1;
     }
 
-    function aggregate(OrderBookSideInfo storage info, uint40 key) internal returns (bool stop) {
+    function aggregate(MarketStructs.OrderBookSideInfo storage info, uint40 key) internal returns (bool stop) {
         uint256 prevBaseSum = info.orderInfos[key].baseSum;
         uint256 prevQuoteSum = info.orderInfos[key].quoteSum;
 
@@ -142,7 +130,7 @@ library OrderBookLibrary {
         stop = baseSum == prevBaseSum && quoteSum == prevQuoteSum;
     }
 
-    function _getQuote(OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
+    function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
         uint128 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
         return PRBMath.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
     }
@@ -155,7 +143,7 @@ library OrderBookLibrary {
     }
 
     function swap(
-        OrderBookSideInfo storage info,
+        MarketStructs.OrderBookSideInfo storage info,
         SwapParams memory params,
         function(bool, bool, uint256) view returns (uint256, uint256) maxSwapBaseQuote,
         function(bool, bool, uint256) returns (uint256) swap,
@@ -203,7 +191,7 @@ library OrderBookLibrary {
     }
 
     function previewSwap(
-        OrderBookSideInfo storage info,
+        MarketStructs.OrderBookSideInfo storage info,
         bool isBaseToQuote,
         bool isExactInput,
         uint256 amount,
@@ -271,7 +259,7 @@ library OrderBookLibrary {
     }
 
     function maxSwap(
-        OrderBookSideInfo storage info,
+        MarketStructs.OrderBookSideInfo storage info,
         bool isBaseToQuote,
         bool isExactInput,
         uint256 priceBoundX96

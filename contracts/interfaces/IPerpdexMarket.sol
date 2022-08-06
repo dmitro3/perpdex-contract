@@ -16,6 +16,8 @@ interface IPerpdexMarket is IPerpdexMarketMinimum {
     event LiquidityAdded(uint256 base, uint256 quote, uint256 liquidity);
     event LiquidityRemoved(uint256 base, uint256 quote, uint256 liquidity);
     event Swapped(bool isBaseToQuote, bool isExactInput, uint256 amount, uint256 oppositeAmount);
+    event LimitOrderCreated(bool isBid, uint256 base, uint256 priceX96, uint256 orderId);
+    event LimitOrderCanceled(bool isBid, uint256 orderId);
 
     // getters
 

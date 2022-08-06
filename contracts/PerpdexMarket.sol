@@ -39,8 +39,8 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     MarketStructs.PoolInfo public poolInfo;
     MarketStructs.FundingInfo public fundingInfo;
     MarketStructs.PriceLimitInfo public priceLimitInfo;
-    OrderBookLibrary.OrderBookSideInfo orderBookInfoAsk;
-    OrderBookLibrary.OrderBookSideInfo orderBookInfoBid;
+    MarketStructs.OrderBookSideInfo orderBookInfoAsk;
+    MarketStructs.OrderBookSideInfo orderBookInfoBid;
 
     uint24 public poolFeeRatio = 3e3;
     uint24 public fundingMaxPremiumRatio = 1e4;
@@ -184,27 +184,27 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
     function createLimitOrder(
         bool isBid,
-        uint256 baseShare,
+        uint256 base,
         uint256 priceX96
     ) external override onlyExchange nonReentrant returns (uint256 orderId) {
         if (isBid) {
             orderId = OrderBookLibrary.createOrder(
-                orderBookInfoAsk,
-                baseShare,
-                priceX96,
-                orderBookLessThanAsk,
-                orderBookAggregateAsk
-            );
-        } else {
-            orderId = OrderBookLibrary.createOrder(
                 orderBookInfoBid,
-                baseShare,
+                base,
                 priceX96,
                 orderBookLessThanBid,
                 orderBookAggregateBid
             );
+        } else {
+            orderId = OrderBookLibrary.createOrder(
+                orderBookInfoAsk,
+                base,
+                priceX96,
+                orderBookLessThanAsk,
+                orderBookAggregateAsk
+            );
         }
-        // TODO: emit event
+        emit LimitOrderCreated(isBid, base, priceX96, orderId);
     }
 
     function cancelLimitOrder(bool isBid, uint256 orderId) external override onlyExchange nonReentrant {
@@ -213,7 +213,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         } else {
             OrderBookLibrary.cancelOrder(orderBookInfoAsk, orderId.toUint40(), orderBookAggregateAsk);
         }
-        // TODO: emit event
+        emit LimitOrderCanceled(isBid, orderId);
     }
 
     function orderBookLessThanAsk(uint40 key0, uint40 key1) private view returns (bool) {
