@@ -195,7 +195,7 @@ library OrderBookLibrary {
         uint256 baseSum;
         uint256 quoteSum;
 
-        while (true) {
+        while (key != 0) {
             PreviewSwapLocalVars memory vars;
             vars.priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
             vars.sharePriceX96 = PRBMath.mulDiv(vars.priceX96, params.baseBalancePerShareX96, FixedPoint96.Q96);
@@ -217,10 +217,10 @@ library OrderBookLibrary {
                 ) +
                     vars.amountPool
             ) {
-                key = info.tree.nodes[key].left;
-                if (key == 0) {
+                if (vars.left == 0) {
                     response.fullLastKey = info.tree.prev(key);
                 }
+                key = vars.left;
             } else if (
                 params.amount <=
                 (
@@ -246,10 +246,11 @@ library OrderBookLibrary {
             } else {
                 baseSum = vars.rightBaseSum;
                 quoteSum = vars.rightQuoteSum;
-                key = info.tree.nodes[key].right;
-                if (key == 0) {
+                uint40 right = info.tree.nodes[key].right;
+                if (right == 0) {
                     response.fullLastKey = key;
                 }
+                key = right;
             }
         }
 
