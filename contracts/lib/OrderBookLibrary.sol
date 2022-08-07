@@ -209,7 +209,7 @@ library OrderBookLibrary {
             vars.rightQuoteSum = vars.leftQuoteSum + _getQuote(info, key);
 
             if (
-                params.amount <
+                params.amount <=
                 (
                     isBase
                         ? vars.leftBaseSum
@@ -222,7 +222,7 @@ library OrderBookLibrary {
                 }
                 key = vars.left;
             } else if (
-                params.amount <=
+                params.amount <
                 (
                     isBase
                         ? vars.rightBaseSum
