@@ -55,7 +55,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         });
 
     modifier onlyExchange() {
-        require(exchange == msg.sender, "PM_OE: caller is not exchange");
+        _onlyExchange();
         _;
     }
 
@@ -423,5 +423,10 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
             sharePriceBound,
             poolInfo.baseBalancePerShareX96
         );
+    }
+
+    // to reduce contract size
+    function _onlyExchange() private view {
+        require(exchange == msg.sender, "PM_OE: caller is not exchange");
     }
 }

@@ -42,12 +42,12 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
     mapping(address => bool) public override isMarketAllowed;
 
     modifier checkDeadline(uint256 deadline) {
-        require(block.timestamp <= deadline, "PE_CD: too late");
+        _checkDeadline(deadline);
         _;
     }
 
     modifier checkMarketAllowed(address market) {
-        require(isMarketAllowed[market], "PE_CMA: market not allowed");
+        _checkMarketAllowed(market);
         _;
     }
 
@@ -486,5 +486,15 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
                     isSelf: params.trader == _msgSender()
                 })
             );
+    }
+
+    // to reduce contract size
+    function _checkDeadline(uint256 deadline) private view {
+        require(block.timestamp <= deadline, "PE_CD: too late");
+    }
+
+    // to reduce contract size
+    function _checkMarketAllowed(address market) private view {
+        require(isMarketAllowed[market], "PE_CMA: market not allowed");
     }
 }
