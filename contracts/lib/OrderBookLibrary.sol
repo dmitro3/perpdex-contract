@@ -179,6 +179,7 @@ library OrderBookLibrary {
         uint256 sharePriceX96;
         uint256 amountPool;
         uint40 left;
+        uint40 right;
         uint256 leftBaseSum;
         uint256 leftQuoteSum;
         uint256 rightBaseSum;
@@ -201,56 +202,58 @@ library OrderBookLibrary {
             vars.sharePriceX96 = PRBMath.mulDiv(vars.priceX96, params.baseBalancePerShareX96, FixedPoint96.Q96);
             vars.amountPool = maxSwapArg(params.isBaseToQuote, params.isExactInput, vars.sharePriceX96);
 
-            // TODO: key - right is more gas efficient than left + key
+            // key - right is more gas efficient than left + key
             vars.left = info.tree.nodes[key].left;
+            vars.right = info.tree.nodes[key].right;
             vars.leftBaseSum = baseSum + info.orderInfos[vars.left].baseSum;
             vars.leftQuoteSum = quoteSum + info.orderInfos[vars.left].quoteSum;
-            vars.rightBaseSum = vars.leftBaseSum + info.orderInfos[key].base;
-            vars.rightQuoteSum = vars.leftQuoteSum + _getQuote(info, key);
 
-            if (
-                params.amount <=
+            uint256 rangeLeft =
                 (
                     isBase
                         ? vars.leftBaseSum
                         : PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
-                ) +
-                    vars.amountPool
-            ) {
+                ) + vars.amountPool;
+            if (params.amount <= rangeLeft) {
                 if (vars.left == 0) {
                     response.fullLastKey = info.tree.prev(key);
                 }
                 key = vars.left;
-            } else if (
-                params.amount <
+                continue;
+            }
+
+            vars.rightBaseSum = baseSum + (info.orderInfos[key].baseSum - info.orderInfos[vars.right].baseSum);
+            vars.rightQuoteSum = quoteSum + (info.orderInfos[key].quoteSum - info.orderInfos[vars.right].quoteSum);
+
+            uint256 rangeRight =
                 (
                     isBase
                         ? vars.rightBaseSum
                         : PRBMath.mulDiv(vars.rightQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
-                ) +
-                    vars.amountPool
-            ) {
+                ) + vars.amountPool;
+            if (params.amount < rangeRight) {
                 response.amountPool = vars.amountPool;
                 response.baseFull = vars.leftBaseSum;
                 response.quoteFull = PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
                 if (isBase) {
-                    response.basePartial = params.amount - (response.baseFull + vars.amountPool);
+                    response.basePartial = params.amount - rangeLeft;
                     response.quotePartial = PRBMath.mulDiv(response.basePartial, vars.sharePriceX96, FixedPoint96.Q96);
                 } else {
-                    response.quotePartial = params.amount - (response.quoteFull + vars.amountPool);
+                    response.quotePartial = params.amount - rangeLeft;
                     response.basePartial = PRBMath.mulDiv(response.quotePartial, FixedPoint96.Q96, vars.sharePriceX96);
                 }
                 response.fullLastKey = info.tree.prev(key);
                 response.partialKey = key;
                 return response;
-            } else {
+            }
+
+            {
                 baseSum = vars.rightBaseSum;
                 quoteSum = vars.rightQuoteSum;
-                uint40 right = info.tree.nodes[key].right;
-                if (right == 0) {
+                if (vars.right == 0) {
                     response.fullLastKey = key;
                 }
-                key = right;
+                key = vars.right;
             }
         }
 
