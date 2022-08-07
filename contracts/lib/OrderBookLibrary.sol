@@ -25,13 +25,13 @@ library OrderBookLibrary {
     using RBTreeLibrary for RBTreeLibrary.Tree;
 
     struct PreviewSwapResponse {
-        uint256 basePool;
-        uint256 quotePool;
+        uint256 amountPool;
         uint256 baseFull;
         uint256 quoteFull;
         uint256 basePartial;
         uint256 quotePartial;
         uint40 fullLastKey;
+        uint40 partialKey;
     }
 
     function createOrder(
@@ -131,54 +131,53 @@ library OrderBookLibrary {
         return PRBMath.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
     }
 
-    struct SwapParams {
-        bool isBaseToQuote;
-        bool isExactInput;
-        uint256 amount;
-        bool noRevert;
-    }
-
     function swap(
         MarketStructs.OrderBookSideInfo storage info,
-        SwapParams memory params,
-        function(bool, bool, uint256) view returns (uint256, uint256) maxSwapBaseQuote,
+        PreviewSwapParams memory params,
+        function(bool, bool, uint256) view returns (uint256) maxSwapArg,
         function(bool, bool, uint256) returns (uint256) swap,
         function(uint40, uint40) view returns (bool) lessThanArg,
         function(uint40) returns (bool) aggregateArg
     ) internal returns (uint256 oppositeAmount) {
-        PreviewSwapResponse memory response =
-            previewSwap(
-                info,
-                params.isBaseToQuote,
-                params.isExactInput,
-                params.amount,
-                params.noRevert,
-                maxSwapBaseQuote
-            );
-        bool isBase = params.isBaseToQuote == params.isExactInput;
-        uint256 poolAmount = isBase ? response.basePool : response.quotePool;
-        if (poolAmount > 0) {
-            uint256 poolOppositeAmount = swap(params.isBaseToQuote, params.isExactInput, poolAmount);
-            require((isBase ? response.quotePool : response.basePool) == poolOppositeAmount, "OBL_S: never occur");
+        PreviewSwapResponse memory response = previewSwap(info, params, maxSwapArg);
+
+        if (response.amountPool > 0) {
+            oppositeAmount += swap(params.isBaseToQuote, params.isExactInput, response.amountPool);
         }
+
+        bool isBase = params.isBaseToQuote == params.isExactInput;
         if (response.fullLastKey != 0) {
             info.tree.removeLeft(response.fullLastKey, lessThanArg, aggregateArg);
-        }
-        // TODO: update order at key
-
-        bool isOppositeBase = !isBase;
-        if (isOppositeBase) {
-            oppositeAmount = response.basePool + response.baseFull + response.basePartial;
+            oppositeAmount += isBase ? response.quoteFull : response.baseFull;
         } else {
-            oppositeAmount = response.quotePool + response.quoteFull + response.quotePartial;
+            require(response.baseFull == 0, "never occur");
+            require(response.quoteFull == 0, "never occur");
         }
+
+        if (response.partialKey != 0) {
+            info.orderInfos[response.partialKey].baseExecuted += response.basePartial;
+            info.orderInfos[response.partialKey].quoteExecuted += response.quotePartial;
+            oppositeAmount += isBase ? response.quotePartial : response.basePartial;
+        } else {
+            require(response.basePartial == 0, "never occur");
+            require(response.quotePartial == 0, "never occur");
+        }
+    }
+
+    // to avoid stack too deep
+    struct PreviewSwapParams {
+        bool isBaseToQuote;
+        bool isExactInput;
+        uint256 amount;
+        bool noRevert;
+        uint256 baseBalancePerShareX96;
     }
 
     // to avoid stack too deep
     struct PreviewSwapLocalVars {
         uint128 priceX96;
-        uint256 basePool;
-        uint256 quotePool;
+        uint256 sharePriceX96;
+        uint256 amountPool;
         uint40 left;
         uint256 leftBaseSum;
         uint256 leftQuoteSum;
@@ -188,13 +187,10 @@ library OrderBookLibrary {
 
     function previewSwap(
         MarketStructs.OrderBookSideInfo storage info,
-        bool isBaseToQuote,
-        bool isExactInput,
-        uint256 amount,
-        bool noRevert,
-        function(bool, bool, uint256) view returns (uint256, uint256) maxSwapBaseQuote
+        PreviewSwapParams memory params,
+        function(bool, bool, uint256) view returns (uint256) maxSwapArg
     ) internal view returns (PreviewSwapResponse memory response) {
-        bool isBase = isBaseToQuote == isExactInput;
+        bool isBase = params.isBaseToQuote == params.isExactInput;
         uint40 key = info.tree.root;
         uint256 baseSum;
         uint256 quoteSum;
@@ -202,7 +198,8 @@ library OrderBookLibrary {
         while (true) {
             PreviewSwapLocalVars memory vars;
             vars.priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
-            (vars.basePool, vars.quotePool) = maxSwapBaseQuote(isBaseToQuote, isExactInput, vars.priceX96);
+            vars.sharePriceX96 = PRBMath.mulDiv(vars.priceX96, params.baseBalancePerShareX96, FixedPoint96.Q96);
+            vars.amountPool = maxSwapArg(params.isBaseToQuote, params.isExactInput, vars.sharePriceX96);
 
             // TODO: key - right is more gas efficient than left + key
             vars.left = info.tree.nodes[key].left;
@@ -211,56 +208,64 @@ library OrderBookLibrary {
             vars.rightBaseSum = vars.leftBaseSum + info.orderInfos[key].base;
             vars.rightQuoteSum = vars.leftQuoteSum + _getQuote(info, key);
 
-            if (amount < (isBase ? vars.leftBaseSum + vars.basePool : vars.leftQuoteSum + vars.quotePool)) {
+            if (
+                params.amount <
+                (
+                    isBase
+                        ? vars.leftBaseSum
+                        : PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
+                ) +
+                    vars.amountPool
+            ) {
                 key = info.tree.nodes[key].left;
                 if (key == 0) {
-                    response.basePool = vars.basePool;
-                    response.quotePool = vars.quotePool;
-                    response.baseFull = vars.leftBaseSum;
-                    response.quoteFull = vars.leftQuoteSum;
-                    response.basePartial = 0;
-                    response.quotePartial = 0;
                     response.fullLastKey = info.tree.prev(key);
-                    return response;
                 }
-            } else if (amount <= (isBase ? vars.rightBaseSum + vars.basePool : vars.rightQuoteSum + vars.quotePool)) {
-                response.basePool = vars.basePool;
-                response.quotePool = vars.quotePool;
+            } else if (
+                params.amount <=
+                (
+                    isBase
+                        ? vars.rightBaseSum
+                        : PRBMath.mulDiv(vars.rightQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
+                ) +
+                    vars.amountPool
+            ) {
+                response.amountPool = vars.amountPool;
                 response.baseFull = vars.leftBaseSum;
-                response.quoteFull = vars.leftQuoteSum;
+                response.quoteFull = PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
                 if (isBase) {
-                    response.basePartial = amount - (vars.rightBaseSum + vars.basePool);
-                    response.quotePartial = PRBMath.mulDiv(response.basePartial, vars.priceX96, FixedPoint96.Q96);
+                    response.basePartial = params.amount - (response.baseFull + vars.amountPool);
+                    response.quotePartial = PRBMath.mulDiv(response.basePartial, vars.sharePriceX96, FixedPoint96.Q96);
                 } else {
-                    response.quotePartial = amount - (vars.rightQuoteSum + vars.quotePool);
-                    response.basePartial = PRBMath.mulDiv(response.quotePartial, FixedPoint96.Q96, vars.priceX96);
+                    response.quotePartial = params.amount - (response.quoteFull + vars.amountPool);
+                    response.basePartial = PRBMath.mulDiv(response.quotePartial, FixedPoint96.Q96, vars.sharePriceX96);
                 }
                 response.fullLastKey = info.tree.prev(key);
+                response.partialKey = key;
                 return response;
             } else {
                 baseSum = vars.rightBaseSum;
                 quoteSum = vars.rightQuoteSum;
                 key = info.tree.nodes[key].right;
                 if (key == 0) {
-                    response.basePool = vars.basePool;
-                    response.quotePool = vars.quotePool;
-                    response.baseFull = vars.rightBaseSum;
-                    response.quoteFull = vars.leftQuoteSum;
-                    response.basePartial = 0;
-                    response.quotePartial = 0;
                     response.fullLastKey = key;
-                    return response;
                 }
             }
         }
+
+        response.baseFull = baseSum;
+        response.quoteFull = PRBMath.mulDiv(quoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
+        response.amountPool = params.amount - (isBase ? response.baseFull : response.quoteFull);
     }
 
     function maxSwap(
         MarketStructs.OrderBookSideInfo storage info,
         bool isBaseToQuote,
         bool isExactInput,
-        uint256 priceBoundX96
+        uint256 sharePriceBoundX96,
+        uint256 baseBalancePerShareX96
     ) internal view returns (uint256 amount) {
+        uint256 priceBoundX96 = PRBMath.mulDiv(sharePriceBoundX96, FixedPoint96.Q96, baseBalancePerShareX96);
         bool isBid = isBaseToQuote;
         bool isBase = isBaseToQuote == isExactInput;
         uint40 key = info.tree.root;
@@ -278,6 +283,11 @@ library OrderBookLibrary {
             } else {
                 key = left;
             }
+        }
+
+        if (!isBase) {
+            // share * price * baseBalancePerShareX96 = share * share_price
+            amount = PRBMath.mulDiv(amount, baseBalancePerShareX96, FixedPoint96.Q96);
         }
     }
 }

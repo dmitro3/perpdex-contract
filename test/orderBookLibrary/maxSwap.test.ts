@@ -204,17 +204,72 @@ describe("OrderBookLibrary maxSwap", () => {
                 expected: 300 * 10,
                 expectedExactOutput: 1100 * 10,
             },
+            {
+                title: "baseBalancePerShareX96 long for ask. out of bound",
+                orders: [
+                    {
+                        isBid: false,
+                        base: 100,
+                        priceX96: Q96.mul(2),
+                    },
+                ],
+                isBaseToQuote: false,
+                priceBoundX96: Q96.mul(2).mul(2).sub(1),
+                baseBalancePerShareX96: Q96.mul(2),
+                expected: 0,
+                expectedExactOutput: 0,
+            },
+            {
+                title: "baseBalancePerShareX96 long for ask. same price",
+                orders: [
+                    {
+                        isBid: false,
+                        base: 100,
+                        priceX96: Q96.mul(2),
+                    },
+                ],
+                isBaseToQuote: false,
+                priceBoundX96: Q96.mul(2).mul(2),
+                baseBalancePerShareX96: Q96.mul(2),
+                expected: 400,
+                expectedExactOutput: 100,
+            },
+            {
+                title: "baseBalancePerShareX96 long for ask. in bound",
+                orders: [
+                    {
+                        isBid: false,
+                        base: 100,
+                        priceX96: Q96.mul(2),
+                    },
+                ],
+                isBaseToQuote: false,
+                priceBoundX96: Q96.mul(2).mul(2).add(1),
+                baseBalancePerShareX96: Q96.mul(2),
+                expected: 400,
+                expectedExactOutput: 100,
+            },
         ].forEach(test => {
             describe(test.title, () => {
                 it("exact input", async () => {
                     await library.createOrders(test.orders)
-                    const result = await library.maxSwap(test.isBaseToQuote, true, test.priceBoundX96)
+                    const result = await library.maxSwap(
+                        test.isBaseToQuote,
+                        true,
+                        test.priceBoundX96,
+                        test.baseBalancePerShareX96 || Q96,
+                    )
                     expect(result).to.eq(test.expected)
                 })
 
                 it("exact output", async () => {
                     await library.createOrders(test.orders)
-                    const result = await library.maxSwap(test.isBaseToQuote, false, test.priceBoundX96)
+                    const result = await library.maxSwap(
+                        test.isBaseToQuote,
+                        false,
+                        test.priceBoundX96,
+                        test.baseBalancePerShareX96 || Q96,
+                    )
                     expect(result).to.eq(test.expectedExactOutput)
                 })
             })

@@ -39,6 +39,8 @@ library MarketStructs {
         uint256 base;
         uint256 baseSum;
         uint256 quoteSum;
+        uint256 baseExecuted;
+        uint256 quoteExecuted;
     }
 
     struct OrderBookSideInfo {

@@ -91,11 +91,12 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         if (isBaseToQuote) {
             oppositeAmount = OrderBookLibrary.swap(
                 orderBookInfoBid,
-                OrderBookLibrary.SwapParams({
+                OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false
+                    noRevert: false,
+                    baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
                 _poolSwap,
@@ -105,11 +106,12 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         } else {
             oppositeAmount = OrderBookLibrary.swap(
                 orderBookInfoAsk,
-                OrderBookLibrary.SwapParams({
+                OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false
+                    noRevert: false,
+                    baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
                 _poolSwap,
@@ -285,59 +287,52 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         (uint256 maxAmount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
         require(amount <= maxAmount, "PM_PS: too large amount");
 
-        OrderBookLibrary.PreviewSwapResponse memory response;
-        if (isBaseToQuote) {
-            response = OrderBookLibrary.previewSwap(
-                orderBookInfoBid,
-                isBaseToQuote,
-                isExactInput,
-                amount,
-                false,
+        OrderBookLibrary.PreviewSwapResponse memory response =
+            OrderBookLibrary.previewSwap(
+                isBaseToQuote ? orderBookInfoBid : orderBookInfoAsk,
+                OrderBookLibrary.PreviewSwapParams({
+                    isBaseToQuote: isBaseToQuote,
+                    isExactInput: isExactInput,
+                    amount: amount,
+                    noRevert: false,
+                    baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
+                }),
                 poolMaxSwap
             );
-        } else {
-            response = OrderBookLibrary.previewSwap(
-                orderBookInfoAsk,
-                isBaseToQuote,
-                isExactInput,
-                amount,
-                false,
-                poolMaxSwap
-            );
-        }
 
+        oppositeAmount = PoolLibrary.previewSwap(
+            poolInfo.base,
+            poolInfo.quote,
+            PoolLibrary.SwapParams({
+                isBaseToQuote: isBaseToQuote,
+                isExactInput: isExactInput,
+                amount: amount,
+                feeRatio: poolFeeRatio
+            }),
+            false
+        );
         bool isOppositeBase = isBaseToQuote != isExactInput;
         if (isOppositeBase) {
-            oppositeAmount = response.basePool + response.baseFull + response.basePartial;
+            oppositeAmount += response.baseFull + response.basePartial;
         } else {
-            oppositeAmount = response.quotePool + response.quoteFull + response.quotePartial;
+            oppositeAmount += response.quoteFull + response.quotePartial;
         }
     }
 
     function poolMaxSwap(
         bool isBaseToQuote,
         bool isExactInput,
-        uint256 price
-    ) private view returns (uint256 base, uint256 quote) {
-        uint256 amount = PoolLibrary.maxSwap(poolInfo.base, poolInfo.quote, isBaseToQuote, true, poolFeeRatio, price);
-        uint256 oppositeAmount =
-            PoolLibrary.previewSwap(
-                base,
-                quote,
-                PoolLibrary.SwapParams({
-                    isBaseToQuote: isBaseToQuote,
-                    isExactInput: true,
-                    feeRatio: poolFeeRatio,
-                    amount: amount
-                }),
-                true
+        uint256 sharePriceX96
+    ) private view returns (uint256) {
+        return
+            PoolLibrary.maxSwap(
+                poolInfo.base,
+                poolInfo.quote,
+                isBaseToQuote,
+                isExactInput,
+                poolFeeRatio,
+                sharePriceX96
             );
-        bool isBase = isBaseToQuote == isExactInput;
-        if (isBase) {
-            (base, quote) = (amount, oppositeAmount);
-        } else {
-            (base, quote) = (oppositeAmount, amount);
-        }
     }
 
     function maxSwap(
@@ -456,10 +451,12 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
             sharePriceBound
         );
 
-        if (isBaseToQuote) {
-            amount += OrderBookLibrary.maxSwap(orderBookInfoBid, isBaseToQuote, isExactInput, sharePriceBound);
-        } else {
-            amount += OrderBookLibrary.maxSwap(orderBookInfoAsk, isBaseToQuote, isExactInput, sharePriceBound);
-        }
+        amount += OrderBookLibrary.maxSwap(
+            isBaseToQuote ? orderBookInfoBid : orderBookInfoAsk,
+            isBaseToQuote,
+            isExactInput,
+            sharePriceBound,
+            poolInfo.baseBalancePerShareX96
+        );
     }
 }
