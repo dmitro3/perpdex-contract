@@ -70,7 +70,9 @@ library AccountPreviewLibrary {
         int256 firstSettlingQuote;
         int256 secondSettlingBase;
         int256 secondSettlingQuote;
-        for (uint256 i = limitOrderInfos.length - 1; i-- > 0; ) {
+        uint256 i = limitOrderInfos.length;
+        while (i > 0) {
+            --i;
             (, int256 executedBase, int256 executedQuote) =
                 IPerpdexMarketMinimum(market).getLimitOrderInfo(limitOrderInfos[i].isBid, limitOrderInfos[i].orderId);
 

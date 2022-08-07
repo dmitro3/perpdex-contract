@@ -87,7 +87,9 @@ library MakerOrderBookLibrary {
 
     function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) internal {
         address[] storage markets = accountInfo.markets;
-        for (uint256 i = markets.length; i-- > 0; ) {
+        uint256 i = markets.length;
+        while (i > 0) {
+            --i;
             settleLimitOrders(accountInfo, markets[i], maxMarketsPerAccount);
         }
     }
@@ -104,7 +106,9 @@ library MakerOrderBookLibrary {
         int256 firstSettlingQuote;
         int256 secondSettlingBase;
         int256 secondSettlingQuote;
-        for (uint256 i = limitOrderInfos.length; i-- > 0; ) {
+        uint256 i = limitOrderInfos.length;
+        while (i > 0) {
+            --i;
             (bool fullyExecuted, int256 executedBase, int256 executedQuote) =
                 IPerpdexMarketMinimum(market).getLimitOrderInfo(limitOrderInfos[i].isBid, limitOrderInfos[i].orderId);
 
