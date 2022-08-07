@@ -221,11 +221,11 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     }
 
     function orderBookLessThanAsk(uint40 key0, uint40 key1) private view returns (bool) {
-        return OrderBookLibrary.lessThan(orderBookInfoAsk, true, key0, key1);
+        return OrderBookLibrary.lessThan(orderBookInfoAsk, false, key0, key1);
     }
 
     function orderBookLessThanBid(uint40 key0, uint40 key1) private view returns (bool) {
-        return OrderBookLibrary.lessThan(orderBookInfoBid, false, key0, key1);
+        return OrderBookLibrary.lessThan(orderBookInfoBid, true, key0, key1);
     }
 
     function orderBookAggregateAsk(uint40 key) private returns (bool stop) {

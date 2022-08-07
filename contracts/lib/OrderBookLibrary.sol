@@ -43,9 +43,8 @@ library OrderBookLibrary {
     ) internal returns (uint40) {
         uint40 key = info.seqKey + 1;
         info.seqKey = key;
-        info.tree.insert(key, lessThanArg, aggregateArg);
-        info.tree.nodes[key].userData = makeUserData(priceX96);
-        info.orderInfos[key].base = base;
+        info.orderInfos[key].base = base; // before insert for aggregation
+        info.tree.insert(key, makeUserData(priceX96), lessThanArg, aggregateArg);
         return key;
     }
 
@@ -114,20 +113,17 @@ library OrderBookLibrary {
     function aggregate(MarketStructs.OrderBookSideInfo storage info, uint40 key) internal returns (bool stop) {
         uint256 prevBaseSum = info.orderInfos[key].baseSum;
         uint256 prevQuoteSum = info.orderInfos[key].quoteSum;
+        uint40 left = info.tree.nodes[key].left;
+        uint40 right = info.tree.nodes[key].right;
 
-        uint128 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
-        uint256 baseSum =
-            info.orderInfos[info.tree.nodes[key].left].baseSum +
-                info.orderInfos[info.tree.nodes[key].right].baseSum +
-                info.orderInfos[key].base;
-        uint256 quoteSum =
-            info.orderInfos[info.tree.nodes[key].left].quoteSum +
-                info.orderInfos[info.tree.nodes[key].right].quoteSum +
-                _getQuote(info, key);
+        uint256 baseSum = info.orderInfos[left].baseSum + info.orderInfos[right].baseSum + info.orderInfos[key].base;
+        uint256 quoteSum = info.orderInfos[left].quoteSum + info.orderInfos[right].quoteSum + _getQuote(info, key);
 
-        info.orderInfos[key].baseSum = baseSum;
-        info.orderInfos[key].quoteSum = quoteSum;
         stop = baseSum == prevBaseSum && quoteSum == prevQuoteSum;
+        if (!stop) {
+            info.orderInfos[key].baseSum = baseSum;
+            info.orderInfos[key].quoteSum = quoteSum;
+        }
     }
 
     function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
@@ -208,6 +204,7 @@ library OrderBookLibrary {
             vars.priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
             (vars.basePool, vars.quotePool) = maxSwapBaseQuote(isBaseToQuote, isExactInput, vars.priceX96);
 
+            // TODO: key - right is more gas efficient than left + key
             vars.left = info.tree.nodes[key].left;
             vars.leftBaseSum = baseSum + info.orderInfos[vars.left].baseSum;
             vars.leftQuoteSum = quoteSum + info.orderInfos[vars.left].quoteSum;
@@ -272,10 +269,12 @@ library OrderBookLibrary {
             uint128 price = userDataToPriceX96(info.tree.nodes[key].userData);
             uint40 left = info.tree.nodes[key].left;
             if (isBid ? price >= priceBoundX96 : price <= priceBoundX96) {
+                // key - right is more gas efficient than left + key
+                uint40 right = info.tree.nodes[key].right;
                 amount += isBase
-                    ? info.orderInfos[left].baseSum + info.orderInfos[key].base
-                    : info.orderInfos[left].quoteSum + _getQuote(info, key);
-                key = info.tree.nodes[key].right;
+                    ? info.orderInfos[key].baseSum - info.orderInfos[right].baseSum
+                    : info.orderInfos[key].quoteSum - info.orderInfos[right].quoteSum;
+                key = right;
             } else {
                 key = left;
             }
