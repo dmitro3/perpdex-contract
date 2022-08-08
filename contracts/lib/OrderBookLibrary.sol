@@ -90,12 +90,6 @@ library OrderBookLibrary {
             orderBookInfo.executionInfos[executionId].baseBalancePerShareX96,
             FixedPoint96.Q96
         );
-
-        // TODO: implement
-
-        // TODO: handle partial execution immediate settlement
-        // force settle partial executed order
-        // TODO: global max order count
     }
 
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {

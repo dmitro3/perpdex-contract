@@ -27,6 +27,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
     mapping(address => PerpdexStructs.AccountInfo) public override accountInfos;
     PerpdexStructs.InsuranceFundInfo public override insuranceFundInfo;
     PerpdexStructs.ProtocolInfo public override protocolInfo;
+    // market, isBid, orderId, trader
+    mapping(address => mapping(bool => mapping(uint40 => address))) public orderIdToTrader;
 
     // config
     address public immutable override settlementToken;
@@ -106,6 +108,24 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
     {
         _settleLimitOrders(params.trader);
         TakerLibrary.TradeResponse memory response = _doTrade(params);
+
+        if (response.rawResponse.partialKey != 0) {
+            address partialTrader =
+                orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialKey];
+            _settleLimitOrders(partialTrader);
+            TakerLibrary.addToTakerBalance(
+                accountInfos[partialTrader],
+                params.market,
+                params.isBaseToQuote
+                    ? response.rawResponse.basePartial.toInt256()
+                    : response.rawResponse.basePartial.neg256(),
+                params.isBaseToQuote
+                    ? response.rawResponse.quotePartial.neg256()
+                    : response.rawResponse.quotePartial.toInt256(),
+                0,
+                maxMarketsPerAccount
+            );
+        }
 
         uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
         uint256 shareMarkPriceAfterX96 = IPerpdexMarketMinimum(params.market).getShareMarkPriceX96();
@@ -255,6 +275,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
                 maxMarketsPerAccount: maxMarketsPerAccount
             })
         );
+        orderIdToTrader[params.market][params.isBid][orderId] = trader;
 
         emit LimitOrderCreated(trader, params.market, params.isBid, params.base, params.priceX96, orderId);
     }
@@ -266,27 +287,23 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
     {
-        _settleLimitOrders(params.trader);
+        address trader = orderIdToTrader[params.market][params.isBid][params.orderId];
+        _settleLimitOrders(trader);
 
         bool isLiquidation =
             MakerOrderBookLibrary.cancelLimitOrder(
-                accountInfos[params.trader],
+                accountInfos[trader],
                 MakerOrderBookLibrary.CancelLimitOrderParams({
                     market: params.market,
                     isBid: params.isBid,
                     orderId: params.orderId,
-                    isSelf: params.trader == _msgSender(),
+                    isSelf: trader == _msgSender(),
                     mmRatio: mmRatio,
                     maxMarketsPerAccount: maxMarketsPerAccount
                 })
             );
 
-        emit LimitOrderCanceled(
-            params.trader,
-            params.market,
-            isLiquidation ? _msgSender() : address(0),
-            params.orderId
-        );
+        emit LimitOrderCanceled(trader, params.market, isLiquidation ? _msgSender() : address(0), params.orderId);
     }
 
     function _settleLimitOrders(address trader) private {

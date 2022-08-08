@@ -60,7 +60,6 @@ interface IPerpdexExchange {
     }
 
     struct CancelLimitOrderParams {
-        address trader;
         address market;
         bool isBid;
         uint40 orderId;
