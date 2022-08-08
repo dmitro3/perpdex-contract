@@ -74,9 +74,12 @@ describe("TakerLibrary", () => {
             },
         ].forEach(test => {
             it(test.title, async () => {
-                await market.mock.swap
-                    .withArgs(test.isBaseToQuote, test.isExactInput, test.swapAmount, false)
-                    .returns(test.swapOppositeAmount)
+                await market.mock.swap.withArgs(test.isBaseToQuote, test.isExactInput, test.swapAmount, false).returns({
+                    oppositeAmount: test.swapOppositeAmount,
+                    basePartial: 0,
+                    quotePartial: 0,
+                    partialKey: 0,
+                })
 
                 await library.setProtocolInfo({ protocolFee: test.protocolFeeBalance })
 
