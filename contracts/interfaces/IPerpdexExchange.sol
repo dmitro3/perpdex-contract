@@ -161,6 +161,10 @@ interface IPerpdexExchange {
 
     function removeLiquidity(RemoveLiquidityParams calldata params) external returns (uint256 base, uint256 quote);
 
+    function createLimitOrder(CreateLimitOrderParams calldata params) external returns (uint40 orderId);
+
+    function cancelLimitOrder(CancelLimitOrderParams calldata params) external;
+
     function trade(TradeParams calldata params) external returns (uint256 oppositeAmount);
 
     // setters

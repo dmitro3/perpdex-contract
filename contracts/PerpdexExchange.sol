@@ -255,7 +255,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function createLimitOrder(CreateLimitOrderParams calldata params)
         external
-        //    override
+        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
@@ -282,7 +282,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function cancelLimitOrder(CancelLimitOrderParams calldata params)
         external
-        //    override
+        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
