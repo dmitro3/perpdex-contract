@@ -41,6 +41,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     MarketStructs.PriceLimitInfo public priceLimitInfo;
     MarketStructs.OrderBookSideInfo orderBookInfoAsk;
     MarketStructs.OrderBookSideInfo orderBookInfoBid;
+    MarketStructs.OrderBookInfo orderBookInfo;
 
     uint24 public poolFeeRatio = 3e3;
     uint24 public fundingMaxPremiumRatio = 1e4;
@@ -83,14 +84,16 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         bool isExactInput,
         uint256 amount,
         bool isLiquidation
-    ) external override onlyExchange nonReentrant returns (uint256 oppositeAmount) {
+    ) external override onlyExchange nonReentrant returns (SwapResponse memory response) {
         (uint256 maxAmount, MarketStructs.PriceLimitInfo memory updated) =
             _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
         require(amount <= maxAmount, "PM_S: too large amount");
 
+        OrderBookLibrary.SwapResponse memory swapResponse;
         if (isBaseToQuote) {
-            oppositeAmount = OrderBookLibrary.swap(
+            swapResponse = OrderBookLibrary.swap(
                 orderBookInfoBid,
+                orderBookInfo,
                 OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
@@ -100,12 +103,13 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
                 }),
                 poolMaxSwap,
                 _poolSwap,
-                orderBookLessThanBid,
-                orderBookAggregateBid
+                orderBookAggregateBid,
+                orderBookSubtreeRemovedBid
             );
         } else {
-            oppositeAmount = OrderBookLibrary.swap(
+            swapResponse = OrderBookLibrary.swap(
                 orderBookInfoAsk,
+                orderBookInfo,
                 OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
@@ -115,14 +119,20 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
                 }),
                 poolMaxSwap,
                 _poolSwap,
-                orderBookLessThanAsk,
-                orderBookAggregateAsk
+                orderBookAggregateAsk,
+                orderBookSubtreeRemovedAsk
             );
         }
+        response = SwapResponse({
+            oppositeAmount: swapResponse.oppositeAmount,
+            basePartial: swapResponse.basePartial,
+            quotePartial: swapResponse.quotePartial,
+            partialKey: swapResponse.partialKey
+        });
 
         PriceLimitLibrary.update(priceLimitInfo, updated);
 
-        emit Swapped(isBaseToQuote, isExactInput, amount, oppositeAmount);
+        emit Swapped(isBaseToQuote, isExactInput, amount, response.oppositeAmount);
 
         _processFunding();
     }
@@ -188,46 +198,26 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         bool isBid,
         uint256 base,
         uint256 priceX96
-    ) external override onlyExchange nonReentrant returns (uint256 orderId) {
+    ) external override onlyExchange nonReentrant returns (uint40 orderId) {
         uint256 markPrice = getMarkPriceX96();
 
         if (isBid) {
             require(priceX96 <= markPrice, "PM_CLO: post only bid");
-            orderId = OrderBookLibrary.createOrder(
-                orderBookInfoBid,
-                base,
-                priceX96,
-                orderBookLessThanBid,
-                orderBookAggregateBid
-            );
+            orderId = OrderBookLibrary.createOrder(orderBookInfoBid, true, base, priceX96, orderBookAggregateBid);
         } else {
             require(priceX96 >= markPrice, "PM_CLO: post only ask");
-            orderId = OrderBookLibrary.createOrder(
-                orderBookInfoAsk,
-                base,
-                priceX96,
-                orderBookLessThanAsk,
-                orderBookAggregateAsk
-            );
+            orderId = OrderBookLibrary.createOrder(orderBookInfoAsk, false, base, priceX96, orderBookAggregateAsk);
         }
         emit LimitOrderCreated(isBid, base, priceX96, orderId);
     }
 
-    function cancelLimitOrder(bool isBid, uint256 orderId) external override onlyExchange nonReentrant {
+    function cancelLimitOrder(bool isBid, uint40 orderId) external override onlyExchange nonReentrant {
         if (isBid) {
-            OrderBookLibrary.cancelOrder(orderBookInfoBid, orderId.toUint40(), orderBookAggregateBid);
+            OrderBookLibrary.cancelOrder(orderBookInfoBid, orderId, orderBookAggregateBid);
         } else {
-            OrderBookLibrary.cancelOrder(orderBookInfoAsk, orderId.toUint40(), orderBookAggregateAsk);
+            OrderBookLibrary.cancelOrder(orderBookInfoAsk, orderId, orderBookAggregateAsk);
         }
         emit LimitOrderCanceled(isBid, orderId);
-    }
-
-    function orderBookLessThanAsk(uint40 key0, uint40 key1) private view returns (bool) {
-        return OrderBookLibrary.lessThan(orderBookInfoAsk, false, key0, key1);
-    }
-
-    function orderBookLessThanBid(uint40 key0, uint40 key1) private view returns (bool) {
-        return OrderBookLibrary.lessThan(orderBookInfoBid, true, key0, key1);
     }
 
     function orderBookAggregateAsk(uint40 key) private returns (bool stop) {
@@ -236,6 +226,14 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
     function orderBookAggregateBid(uint40 key) private returns (bool stop) {
         return OrderBookLibrary.aggregate(orderBookInfoBid, key);
+    }
+
+    function orderBookSubtreeRemovedAsk(uint40 key) private {
+        return OrderBookLibrary.subtreeRemoved(orderBookInfoAsk, orderBookInfo, key);
+    }
+
+    function orderBookSubtreeRemovedBid(uint40 key) private {
+        return OrderBookLibrary.subtreeRemoved(orderBookInfoBid, orderBookInfo, key);
     }
 
     function setPoolFeeRatio(uint24 value) external onlyOwner nonReentrant {
@@ -380,20 +378,20 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         return PoolLibrary.getMarkPriceX96(poolInfo.base, poolInfo.quote, poolInfo.baseBalancePerShareX96);
     }
 
-    function getLimitOrderInfo(bool isBid, uint256 orderId)
+    function getLimitOrderExecution(bool isBid, uint40 orderId)
         external
         view
         override
         returns (
-            bool fullyExecuted,
-            int256 executedBase,
-            int256 executedQuote
+            uint256 executionId,
+            uint256 executedBase,
+            uint256 executedQuote
         )
     {
         if (isBid) {
-            return OrderBookLibrary.getOrderInfo(orderBookInfoBid, orderId.toUint40());
+            return OrderBookLibrary.getOrderExecution(orderBookInfoBid, orderBookInfo, orderId);
         } else {
-            return OrderBookLibrary.getOrderInfo(orderBookInfoAsk, orderId.toUint40());
+            return OrderBookLibrary.getOrderExecution(orderBookInfoAsk, orderBookInfo, orderId);
         }
     }
 

@@ -231,7 +231,9 @@ library TakerLibrary {
                 isLiquidation
             );
         } else {
-            oppositeAmount = IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+            oppositeAmount = IPerpdexMarketMinimum(market)
+                .swap(isBaseToQuote, isExactInput, amount, isLiquidation)
+                .oppositeAmount;
         }
         validateSlippage(isExactInput, oppositeAmount, oppositeAmountBound);
 
@@ -250,30 +252,28 @@ library TakerLibrary {
     ) internal returns (uint256 oppositeAmount, uint256 protocolFee) {
         if (isExactInput) {
             if (isBaseToQuote) {
-                oppositeAmount = IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+                oppositeAmount = IPerpdexMarketMinimum(market)
+                    .swap(isBaseToQuote, isExactInput, amount, isLiquidation)
+                    .oppositeAmount;
                 protocolFee = oppositeAmount.mulRatio(protocolFeeRatio);
                 oppositeAmount = oppositeAmount.sub(protocolFee);
             } else {
                 protocolFee = amount.mulRatio(protocolFeeRatio);
-                oppositeAmount = IPerpdexMarketMinimum(market).swap(
-                    isBaseToQuote,
-                    isExactInput,
-                    amount.sub(protocolFee),
-                    isLiquidation
-                );
+                oppositeAmount = IPerpdexMarketMinimum(market)
+                    .swap(isBaseToQuote, isExactInput, amount.sub(protocolFee), isLiquidation)
+                    .oppositeAmount;
             }
         } else {
             if (isBaseToQuote) {
                 protocolFee = amount.divRatio(PerpMath.subRatio(1e6, protocolFeeRatio)).sub(amount);
-                oppositeAmount = IPerpdexMarketMinimum(market).swap(
-                    isBaseToQuote,
-                    isExactInput,
-                    amount.add(protocolFee),
-                    isLiquidation
-                );
+                oppositeAmount = IPerpdexMarketMinimum(market)
+                    .swap(isBaseToQuote, isExactInput, amount.add(protocolFee), isLiquidation)
+                    .oppositeAmount;
             } else {
                 uint256 oppositeAmountWithoutFee =
-                    IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+                    IPerpdexMarketMinimum(market)
+                        .swap(isBaseToQuote, isExactInput, amount, isLiquidation)
+                        .oppositeAmount;
                 oppositeAmount = oppositeAmountWithoutFee.divRatio(PerpMath.subRatio(1e6, protocolFeeRatio));
                 protocolFee = oppositeAmount.sub(oppositeAmountWithoutFee);
             }

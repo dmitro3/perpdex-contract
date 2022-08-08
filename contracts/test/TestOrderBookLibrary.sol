@@ -86,30 +86,10 @@ contract TestOrderBookLibrary {
 
     function createOrder(CreateOrderParams calldata params) private {
         if (params.isBid) {
-            OrderBookLibrary.createOrder(
-                bid,
-                params.base,
-                params.priceX96,
-                orderBookLessThanBid,
-                orderBookAggregateBid
-            );
+            OrderBookLibrary.createOrder(bid, true, params.base, params.priceX96, orderBookAggregateBid);
         } else {
-            OrderBookLibrary.createOrder(
-                ask,
-                params.base,
-                params.priceX96,
-                orderBookLessThanAsk,
-                orderBookAggregateAsk
-            );
+            OrderBookLibrary.createOrder(ask, false, params.base, params.priceX96, orderBookAggregateAsk);
         }
-    }
-
-    function orderBookLessThanAsk(uint40 key0, uint40 key1) private view returns (bool) {
-        return OrderBookLibrary.lessThan(ask, false, key0, key1);
-    }
-
-    function orderBookLessThanBid(uint40 key0, uint40 key1) private view returns (bool) {
-        return OrderBookLibrary.lessThan(bid, true, key0, key1);
     }
 
     function orderBookAggregateAsk(uint40 key) private returns (bool stop) {

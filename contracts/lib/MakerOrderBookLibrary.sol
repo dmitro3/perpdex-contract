@@ -11,7 +11,11 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
 import { AccountLibrary } from "./AccountLibrary.sol";
+import { AccountPreviewLibrary } from "./AccountPreviewLibrary.sol";
 import { TakerLibrary } from "./TakerLibrary.sol";
+import {
+    BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
+} from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 
 library MakerOrderBookLibrary {
     using PerpMath for int256;
@@ -19,6 +23,7 @@ library MakerOrderBookLibrary {
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;
+    using RBTreeLibrary for RBTreeLibrary.Tree;
 
     struct CreateLimitOrderParams {
         address market;
@@ -31,7 +36,7 @@ library MakerOrderBookLibrary {
 
     struct CancelLimitOrderParams {
         address market;
-        uint256 orderId;
+        uint40 orderId;
         bool isBid;
         uint24 mmRatio;
         bool isSelf;
@@ -40,19 +45,16 @@ library MakerOrderBookLibrary {
 
     function createLimitOrder(PerpdexStructs.AccountInfo storage accountInfo, CreateLimitOrderParams memory params)
         internal
-        returns (uint256 orderId)
+        returns (uint40 orderId)
     {
         orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(params.isBid, params.base, params.priceX96);
 
-        PerpdexStructs.LimitOrderInfo[] storage limitOrderInfos = accountInfo.limitOrderInfos[params.market];
-        limitOrderInfos.push(
-            PerpdexStructs.LimitOrderInfo({
-                orderId: orderId,
-                isBid: params.isBid,
-                settledBaseShare: 0,
-                settledQuote: 0
-            })
-        );
+        PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
+        if (params.isBid) {
+            limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), lessThanBid, aggregate);
+        } else {
+            limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate);
+        }
 
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
 
@@ -71,19 +73,57 @@ library MakerOrderBookLibrary {
 
         IPerpdexMarketMinimum(params.market).cancelLimitOrder(params.isBid, params.orderId);
 
-        PerpdexStructs.LimitOrderInfo[] storage limitOrderInfos = accountInfo.limitOrderInfos[params.market];
-        uint256 length = limitOrderInfos.length;
-        for (uint256 i = 0; i < length; ++i) {
-            if (limitOrderInfos[i].orderId == params.orderId) {
-                limitOrderInfos[i] = limitOrderInfos[length - 1];
-                limitOrderInfos.pop();
-                return isLiquidation;
-            }
+        PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
+        if (params.isBid) {
+            limitOrderInfo.bid.remove(params.orderId, aggregate);
+        } else {
+            limitOrderInfo.ask.remove(params.orderId, aggregate);
         }
-        require(false, "MOBL_CLO: order not exist");
 
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
     }
+
+    function makeUserData(uint256 priceX96) internal pure returns (uint128) {
+        return priceX96.toUint128();
+    }
+
+    function userDataToPriceX96(uint128 userData) internal pure returns (uint128) {
+        return userData;
+    }
+
+    function lessThanAsk(
+        RBTreeLibrary.Tree storage tree,
+        uint40 key0,
+        uint40 key1
+    ) private view returns (bool) {
+        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
+        if (price0 == price1) {
+            return key0 < key1; // time priority
+        }
+        // price priority
+        return price0 < price1;
+    }
+
+    function lessThanBid(
+        RBTreeLibrary.Tree storage tree,
+        uint40 key0,
+        uint40 key1
+    ) private view returns (bool) {
+        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
+        if (price0 == price1) {
+            return key0 < key1; // time priority
+        }
+        // price priority
+        return price0 > price1;
+    }
+
+    function aggregate(uint40 key) private pure returns (bool) {
+        return true;
+    }
+
+    function subtreeRemoved(uint40 key) private pure {}
 
     function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) internal {
         address[] storage markets = accountInfo.markets;
@@ -99,55 +139,27 @@ library MakerOrderBookLibrary {
         address market,
         uint8 maxMarketsPerAccount
     ) internal {
-        bool currentIsLong = accountInfo.takerInfos[market].baseBalanceShare >= 0;
+        PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
+        (
+            AccountPreviewLibrary.Execution[] memory executions,
+            uint40 executedLastAskOrderId,
+            uint40 executedLastBidOrderId
+        ) = AccountPreviewLibrary.getLimitOrderExecutions(accountInfo, market);
 
-        PerpdexStructs.LimitOrderInfo[] storage limitOrderInfos = accountInfo.limitOrderInfos[market];
-        int256 firstSettlingBase;
-        int256 firstSettlingQuote;
-        int256 secondSettlingBase;
-        int256 secondSettlingQuote;
-        uint256 i = limitOrderInfos.length;
-        while (i > 0) {
-            --i;
-            (bool fullyExecuted, int256 executedBase, int256 executedQuote) =
-                IPerpdexMarketMinimum(market).getLimitOrderInfo(limitOrderInfos[i].isBid, limitOrderInfos[i].orderId);
-
-            int256 settlingBase = executedBase - limitOrderInfos[i].settledBaseShare;
-            int256 settlingQuote = executedQuote - limitOrderInfos[i].settledQuote;
-
-            if ((settlingBase >= 0) == currentIsLong) {
-                firstSettlingBase += settlingBase;
-                firstSettlingQuote += settlingQuote;
-            } else {
-                secondSettlingBase += settlingBase;
-                secondSettlingQuote += settlingQuote;
-            }
-
-            if (fullyExecuted) {
-                limitOrderInfos[i] = limitOrderInfos[limitOrderInfos.length - 1];
-                limitOrderInfos.pop();
-            } else {
-                limitOrderInfos[i].settledBaseShare = executedBase;
-                limitOrderInfos[i].settledBaseShare = executedQuote;
-            }
+        if (executedLastAskOrderId != 0) {
+            limitOrderInfo.ask.removeLeft(executedLastAskOrderId, lessThanAsk, aggregate, subtreeRemoved);
+        }
+        if (executedLastBidOrderId != 0) {
+            limitOrderInfo.bid.removeLeft(executedLastBidOrderId, lessThanBid, aggregate, subtreeRemoved);
         }
 
-        if (firstSettlingBase != 0) {
+        uint256 length = executions.length;
+        for (uint256 i = 0; i < length; ++i) {
             TakerLibrary.addToTakerBalance(
                 accountInfo,
                 market,
-                firstSettlingBase,
-                firstSettlingQuote,
-                0,
-                maxMarketsPerAccount
-            );
-        }
-        if (secondSettlingBase != 0) {
-            TakerLibrary.addToTakerBalance(
-                accountInfo,
-                market,
-                secondSettlingBase,
-                secondSettlingQuote,
+                executions[i].executedBase,
+                executions[i].executedQuote,
                 0,
                 maxMarketsPerAccount
             );

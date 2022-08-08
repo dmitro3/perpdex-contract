@@ -24,6 +24,13 @@ library OrderBookLibrary {
     using SignedSafeMath for int256;
     using RBTreeLibrary for RBTreeLibrary.Tree;
 
+    struct SwapResponse {
+        uint256 oppositeAmount;
+        uint256 basePartial;
+        uint256 quotePartial;
+        uint40 partialKey;
+    }
+
     struct PreviewSwapResponse {
         uint256 amountPool;
         uint256 baseFull;
@@ -36,15 +43,17 @@ library OrderBookLibrary {
 
     function createOrder(
         MarketStructs.OrderBookSideInfo storage info,
+        bool isBid,
         uint256 base,
         uint256 priceX96,
-        function(uint40, uint40) view returns (bool) lessThanArg,
         function(uint40) returns (bool) aggregateArg
     ) internal returns (uint40) {
+        require(base > 0, "OBL_CO: base is zero");
+        require(priceX96 > 0, "OBL_CO: price is zero");
         uint40 key = info.seqKey + 1;
         info.seqKey = key;
         info.orderInfos[key].base = base; // before insert for aggregation
-        info.tree.insert(key, makeUserData(priceX96), lessThanArg, aggregateArg);
+        info.tree.insert(key, makeUserData(priceX96), isBid ? lessThanBid : lessThanAsk, aggregateArg);
         return key;
     }
 
@@ -53,38 +62,51 @@ library OrderBookLibrary {
         uint40 key,
         function(uint40) returns (bool) aggregateArg
     ) internal {
-        require(!isExecuted(info, key), "already executed");
+        require(isFullyExecuted(info, key) == 0, "already fully executed");
         info.tree.remove(key, aggregateArg);
         delete info.orderInfos[key];
     }
 
-    function getOrderInfo(MarketStructs.OrderBookSideInfo storage info, uint40 key)
+    function getOrderExecution(
+        MarketStructs.OrderBookSideInfo storage info,
+        MarketStructs.OrderBookInfo storage orderBookInfo,
+        uint40 key
+    )
         internal
         view
         returns (
-            bool fullyExecuted,
-            int256 executedBase,
-            int256 executedQuote
+            uint48 executionId,
+            uint256 executedBase,
+            uint256 executedQuote
         )
     {
-        fullyExecuted = isExecuted(info, key);
+        executionId = isFullyExecuted(info, key);
+        if (executionId == 0) return (0, 0, 0);
+
+        executedBase = info.orderInfos[key].base;
+        // rounding error occurs, but it is negligible.
+        executedQuote = PRBMath.mulDiv(
+            _getQuote(info, key),
+            orderBookInfo.executionInfos[executionId].baseBalancePerShareX96,
+            FixedPoint96.Q96
+        );
 
         // TODO: implement
+
+        // TODO: handle partial execution immediate settlement
+        // force settle partial executed order
+        // TODO: global max order count
     }
 
-    function isExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) internal view returns (bool) {
+    function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
         require(info.tree.exists(key), "OBL_IE: not exist");
-        while (key != 0) {
-            if (key == info.tree.root) {
-                return false;
+        while (key != 0 && key != info.tree.root) {
+            if (info.orderInfos[key].executionId != 0) {
+                return info.orderInfos[key].executionId;
             }
-            uint40 parent = info.tree.nodes[key].parent;
-            if (info.tree.nodes[parent].left != key && info.tree.nodes[parent].right != key) {
-                return true;
-            }
-            key = parent;
+            key = info.tree.nodes[key].parent;
         }
-        return true;
+        return 0;
     }
 
     function makeUserData(uint256 priceX96) internal pure returns (uint128) {
@@ -95,19 +117,32 @@ library OrderBookLibrary {
         return userData;
     }
 
-    function lessThan(
-        MarketStructs.OrderBookSideInfo storage info,
-        bool isBid,
+    function lessThanAsk(
+        RBTreeLibrary.Tree storage tree,
         uint40 key0,
         uint40 key1
     ) internal view returns (bool) {
-        uint128 price0 = userDataToPriceX96(info.tree.nodes[key0].userData);
-        uint128 price1 = userDataToPriceX96(info.tree.nodes[key1].userData);
+        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
         if (price0 == price1) {
             return key0 < key1; // time priority
         }
         // price priority
-        return isBid ? price0 > price1 : price0 < price1;
+        return price0 < price1;
+    }
+
+    function lessThanBid(
+        RBTreeLibrary.Tree storage tree,
+        uint40 key0,
+        uint40 key1
+    ) internal view returns (bool) {
+        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
+        if (price0 == price1) {
+            return key0 < key1; // time priority
+        }
+        // price priority
+        return price0 > price1;
     }
 
     function aggregate(MarketStructs.OrderBookSideInfo storage info, uint40 key) internal returns (bool stop) {
@@ -126,6 +161,14 @@ library OrderBookLibrary {
         }
     }
 
+    function subtreeRemoved(
+        MarketStructs.OrderBookSideInfo storage info,
+        MarketStructs.OrderBookInfo storage orderBookInfo,
+        uint40 key
+    ) internal {
+        info.orderInfos[key].executionId = orderBookInfo.seqExecutionId;
+    }
+
     function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
         uint128 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
         return PRBMath.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
@@ -133,31 +176,45 @@ library OrderBookLibrary {
 
     function swap(
         MarketStructs.OrderBookSideInfo storage info,
+        MarketStructs.OrderBookInfo storage orderBookInfo,
         PreviewSwapParams memory params,
         function(bool, bool, uint256) view returns (uint256) maxSwapArg,
         function(bool, bool, uint256) returns (uint256) swap,
-        function(uint40, uint40) view returns (bool) lessThanArg,
-        function(uint40) returns (bool) aggregateArg
-    ) internal returns (uint256 oppositeAmount) {
+        function(uint40) returns (bool) aggregateArg,
+        function(uint40) subtreeRemovedArg
+    ) internal returns (SwapResponse memory swapResponse) {
         PreviewSwapResponse memory response = previewSwap(info, params, maxSwapArg);
 
         if (response.amountPool > 0) {
-            oppositeAmount += swap(params.isBaseToQuote, params.isExactInput, response.amountPool);
+            swapResponse.oppositeAmount += swap(params.isBaseToQuote, params.isExactInput, response.amountPool);
         }
 
         bool isBase = params.isBaseToQuote == params.isExactInput;
         if (response.fullLastKey != 0) {
-            info.tree.removeLeft(response.fullLastKey, lessThanArg, aggregateArg);
-            oppositeAmount += isBase ? response.quoteFull : response.baseFull;
+            orderBookInfo.seqExecutionId += 1;
+            orderBookInfo.executionInfos[orderBookInfo.seqExecutionId] = MarketStructs.ExecutionInfo({
+                baseBalancePerShareX96: params.baseBalancePerShareX96
+            });
+            info.tree.removeLeft(
+                response.fullLastKey,
+                params.isBaseToQuote ? lessThanBid : lessThanAsk,
+                aggregateArg,
+                subtreeRemovedArg
+            );
+            swapResponse.oppositeAmount += isBase ? response.quoteFull : response.baseFull;
         } else {
             require(response.baseFull == 0, "never occur");
             require(response.quoteFull == 0, "never occur");
         }
 
         if (response.partialKey != 0) {
-            info.orderInfos[response.partialKey].baseExecuted += response.basePartial;
-            info.orderInfos[response.partialKey].quoteExecuted += response.quotePartial;
-            oppositeAmount += isBase ? response.quotePartial : response.basePartial;
+            info.orderInfos[response.partialKey].base -= response.basePartial; // result > 0
+            info.tree.aggregateRecursively(response.partialKey, aggregateArg);
+
+            swapResponse.oppositeAmount += isBase ? response.quotePartial : response.basePartial;
+            swapResponse.basePartial = response.basePartial;
+            swapResponse.quotePartial = response.quotePartial;
+            swapResponse.partialKey = response.partialKey;
         } else {
             require(response.basePartial == 0, "never occur");
             require(response.quotePartial == 0, "never occur");
@@ -236,11 +293,13 @@ library OrderBookLibrary {
                 response.baseFull = vars.leftBaseSum;
                 response.quoteFull = PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
                 if (isBase) {
-                    response.basePartial = params.amount - rangeLeft;
+                    response.basePartial = params.amount - rangeLeft; // < info.orderInfos[key].base
                     response.quotePartial = PRBMath.mulDiv(response.basePartial, vars.sharePriceX96, FixedPoint96.Q96);
                 } else {
                     response.quotePartial = params.amount - rangeLeft;
                     response.basePartial = PRBMath.mulDiv(response.quotePartial, FixedPoint96.Q96, vars.sharePriceX96);
+                    // round to fit order size
+                    response.basePartial = Math.min(response.basePartial, info.orderInfos[key].base - 1);
                 }
                 response.fullLastKey = info.tree.prev(key);
                 response.partialKey = key;

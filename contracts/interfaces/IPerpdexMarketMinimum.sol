@@ -3,12 +3,19 @@ pragma solidity >=0.7.6;
 pragma abicoder v2;
 
 interface IPerpdexMarketMinimum {
+    struct SwapResponse {
+        uint256 oppositeAmount;
+        uint256 basePartial;
+        uint256 quotePartial;
+        uint40 partialKey;
+    }
+
     function swap(
         bool isBaseToQuote,
         bool isExactInput,
         uint256 amount,
         bool isLiquidation
-    ) external returns (uint256);
+    ) external returns (SwapResponse memory response);
 
     function addLiquidity(uint256 baseShare, uint256 quoteBalance)
         external
@@ -24,9 +31,9 @@ interface IPerpdexMarketMinimum {
         bool isBid,
         uint256 baseShare,
         uint256 priceX96
-    ) external returns (uint256 orderId);
+    ) external returns (uint40 orderId);
 
-    function cancelLimitOrder(bool isBid, uint256 orderId) external;
+    function cancelLimitOrder(bool isBid, uint40 orderId) external;
 
     // getters
 
@@ -59,12 +66,12 @@ interface IPerpdexMarketMinimum {
 
     function baseBalancePerShareX96() external view returns (uint256);
 
-    function getLimitOrderInfo(bool isBid, uint256 orderId)
+    function getLimitOrderExecution(bool isBid, uint40 orderId)
         external
         view
         returns (
-            bool fullyExecuted,
-            int256 executedBase,
-            int256 executedQuote
+            uint256 executionId,
+            uint256 executedBase,
+            uint256 executedQuote
         );
 }

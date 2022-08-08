@@ -239,7 +239,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
-        returns (uint256 orderId)
+        returns (uint40 orderId)
     {
         address trader = _msgSender();
         _settleLimitOrders(trader);

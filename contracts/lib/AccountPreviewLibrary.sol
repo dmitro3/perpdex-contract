@@ -10,6 +10,9 @@ import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpMath } from "./PerpMath.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
+import {
+    BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
+} from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 
 // This is a technical library to avoid circular references between libraries
 library AccountPreviewLibrary {
@@ -19,6 +22,7 @@ library AccountPreviewLibrary {
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;
+    using RBTreeLibrary for RBTreeLibrary.Tree;
 
     function previewAddToTakerBalance(
         PerpdexStructs.TakerInfo memory takerInfo,
@@ -56,50 +60,112 @@ library AccountPreviewLibrary {
         resultTakerInfo.quoteBalance = newQuoteBalance;
     }
 
-    // we use batch execution rules
-    // see https://medium.com/perpdex/order-dependency-of-trade-execution-ce6d2907eb4f
+    struct Execution {
+        int256 executedBase;
+        int256 executedQuote;
+    }
+
+    function getLimitOrderExecutions(PerpdexStructs.AccountInfo storage accountInfo, address market)
+        internal
+        view
+        returns (
+            Execution[] memory executions,
+            uint40 executedLastAskOrderId,
+            uint40 executedLastBidOrderId
+        )
+    {
+        PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
+
+        uint40 ask = limitOrderInfo.ask.first();
+        uint40 bid = limitOrderInfo.bid.first();
+        uint256 executionIdAsk;
+        uint256 executedBaseAsk;
+        uint256 executedQuoteAsk;
+        uint256 executionIdBid;
+        uint256 executedBaseBid;
+        uint256 executedQuoteBid;
+        if (ask != 0) {
+            (executionIdAsk, executedBaseAsk, executedQuoteAsk) = IPerpdexMarketMinimum(market).getLimitOrderExecution(
+                false,
+                ask
+            );
+        }
+        if (bid != 0) {
+            (executionIdBid, executedBaseBid, executedQuoteBid) = IPerpdexMarketMinimum(market).getLimitOrderExecution(
+                true,
+                bid
+            );
+        }
+
+        // Combine the ask and bid and process from the one with the smallest executionId.
+        // Ask and bid are already sorted and can be processed like merge sort.
+        Execution[100] memory executions2; // TODO: max order count
+        uint256 executionCount;
+        while (ask != 0 || bid != 0) {
+            if (ask != 0 && (bid == 0 || executionIdAsk < executionIdBid)) {
+                executions2[executionCount] = Execution({
+                    executedBase: executedBaseAsk.neg256(),
+                    executedQuote: executedQuoteAsk.toInt256()
+                });
+                ++executionCount;
+
+                uint40 nextAsk = limitOrderInfo.ask.next(ask);
+                if (nextAsk != 0) {
+                    (executionIdAsk, executedBaseAsk, executedQuoteAsk) = IPerpdexMarketMinimum(market)
+                        .getLimitOrderExecution(false, nextAsk);
+                }
+                if (executionIdAsk == 0 || nextAsk == 0) {
+                    executedLastAskOrderId = ask;
+                    ask = 0;
+                } else {
+                    ask = nextAsk;
+                }
+            } else {
+                executions2[executionCount] = Execution({
+                    executedBase: executedBaseBid.toInt256(),
+                    executedQuote: executedQuoteBid.neg256()
+                });
+                ++executionCount;
+
+                uint40 nextBid = limitOrderInfo.bid.next(bid);
+                if (nextBid != 0) {
+                    (executionIdBid, executedBaseBid, executedQuoteBid) = IPerpdexMarketMinimum(market)
+                        .getLimitOrderExecution(true, nextBid);
+                }
+                if (executionIdBid == 0 || nextBid == 0) {
+                    executedLastBidOrderId = bid;
+                    bid = 0;
+                } else {
+                    bid = nextBid;
+                }
+            }
+        }
+
+        executions = new Execution[](executionCount);
+        for (uint256 i = 0; i < executionCount; i++) {
+            executions[i] = executions2[i];
+        }
+    }
+
     function previewSettleLimitOrders(PerpdexStructs.AccountInfo storage accountInfo, address market)
         internal
         view
         returns (PerpdexStructs.TakerInfo memory takerInfo, int256 realizedPnl)
     {
+        (Execution[] memory executions, , ) = getLimitOrderExecutions(accountInfo, market);
+
         takerInfo = accountInfo.takerInfos[market];
 
-        PerpdexStructs.LimitOrderInfo[] storage limitOrderInfos = accountInfo.limitOrderInfos[market];
-        int256 firstSettlingBase;
-        int256 firstSettlingQuote;
-        int256 secondSettlingBase;
-        int256 secondSettlingQuote;
-        uint256 i = limitOrderInfos.length;
-        while (i > 0) {
-            --i;
-            (, int256 executedBase, int256 executedQuote) =
-                IPerpdexMarketMinimum(market).getLimitOrderInfo(limitOrderInfos[i].isBid, limitOrderInfos[i].orderId);
-
-            int256 settlingBase = executedBase - limitOrderInfos[i].settledBaseShare;
-            int256 settlingQuote = executedQuote - limitOrderInfos[i].settledQuote;
-
-            if ((settlingBase >= 0) == (takerInfo.baseBalanceShare >= 0)) {
-                firstSettlingBase += settlingBase;
-                firstSettlingQuote += settlingQuote;
-            } else {
-                secondSettlingBase += settlingBase;
-                secondSettlingQuote += settlingQuote;
-            }
-        }
-
-        if (firstSettlingBase != 0) {
-            (takerInfo, realizedPnl) = previewAddToTakerBalance(takerInfo, firstSettlingBase, firstSettlingQuote, 0);
-        }
-        int256 secondRealizedPnl;
-        if (secondSettlingBase != 0) {
-            (takerInfo, secondRealizedPnl) = previewAddToTakerBalance(
+        uint256 length = executions.length;
+        for (uint256 i = 0; i < length; ++i) {
+            int256 realizedPnl2;
+            (takerInfo, realizedPnl2) = previewAddToTakerBalance(
                 takerInfo,
-                secondSettlingBase,
-                secondSettlingQuote,
+                executions[i].executedBase,
+                executions[i].executedQuote,
                 0
             );
-            realizedPnl += secondRealizedPnl;
+            realizedPnl += realizedPnl2;
         }
     }
 }

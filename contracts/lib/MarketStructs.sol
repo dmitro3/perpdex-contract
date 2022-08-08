@@ -39,13 +39,21 @@ library MarketStructs {
         uint256 base;
         uint256 baseSum;
         uint256 quoteSum;
-        uint256 baseExecuted;
-        uint256 quoteExecuted;
+        uint48 executionId;
     }
 
     struct OrderBookSideInfo {
         RBTreeLibrary.Tree tree;
-        uint40 seqKey;
         mapping(uint40 => OrderInfo) orderInfos;
+        uint40 seqKey;
+    }
+
+    struct ExecutionInfo {
+        uint256 baseBalancePerShareX96;
+    }
+
+    struct OrderBookInfo {
+        uint48 seqExecutionId;
+        mapping(uint48 => ExecutionInfo) executionInfos;
     }
 }

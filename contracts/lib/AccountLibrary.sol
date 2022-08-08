@@ -27,7 +27,8 @@ library AccountLibrary {
         bool enabled =
             accountInfo.takerInfos[market].baseBalanceShare != 0 ||
                 accountInfo.makerInfos[market].liquidity != 0 ||
-                accountInfo.limitOrderInfos[market].length > 0;
+                accountInfo.limitOrderInfos[market].ask.root != 0 ||
+                accountInfo.limitOrderInfos[market].bid.root != 0;
         address[] storage markets = accountInfo.markets;
         uint256 length = markets.length;
 

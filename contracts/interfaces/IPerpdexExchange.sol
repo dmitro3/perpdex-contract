@@ -63,7 +63,7 @@ interface IPerpdexExchange {
         address trader;
         address market;
         bool isBid;
-        uint256 orderId;
+        uint40 orderId;
         uint256 deadline;
     }
 
