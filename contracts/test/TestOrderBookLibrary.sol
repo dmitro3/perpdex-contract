@@ -11,8 +11,7 @@ import { MarketStructs } from "../lib/MarketStructs.sol";
 contract TestOrderBookLibrary {
     constructor() {}
 
-    MarketStructs.OrderBookSideInfo ask;
-    MarketStructs.OrderBookSideInfo bid;
+    MarketStructs.OrderBookInfo info;
 
     function previewSwap(
         bool isBaseToQuote,
@@ -21,7 +20,7 @@ contract TestOrderBookLibrary {
         uint256 baseBalancePerShareX96
     ) external view returns (OrderBookLibrary.PreviewSwapResponse memory response) {
         response = OrderBookLibrary.previewSwap(
-            isBaseToQuote ? bid : ask,
+            isBaseToQuote ? info.bid : info.ask,
             OrderBookLibrary.PreviewSwapParams({
                 isBaseToQuote: isBaseToQuote,
                 isExactInput: isExactInput,
@@ -64,7 +63,7 @@ contract TestOrderBookLibrary {
     ) external view returns (uint256 amount) {
         return
             OrderBookLibrary.maxSwap(
-                isBaseToQuote ? bid : ask,
+                isBaseToQuote ? info.bid : info.ask,
                 isBaseToQuote,
                 isExactInput,
                 sharePriceBoundX96,
@@ -85,18 +84,6 @@ contract TestOrderBookLibrary {
     }
 
     function createOrder(CreateOrderParams calldata params) private {
-        if (params.isBid) {
-            OrderBookLibrary.createOrder(bid, true, params.base, params.priceX96, orderBookAggregateBid);
-        } else {
-            OrderBookLibrary.createOrder(ask, false, params.base, params.priceX96, orderBookAggregateAsk);
-        }
-    }
-
-    function orderBookAggregateAsk(uint40 key) private returns (bool stop) {
-        return OrderBookLibrary.aggregate(ask, key);
-    }
-
-    function orderBookAggregateBid(uint40 key) private returns (bool stop) {
-        return OrderBookLibrary.aggregate(bid, key);
+        OrderBookLibrary.createOrder(info, params.isBid, params.base, params.priceX96);
     }
 }

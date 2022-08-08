@@ -39,8 +39,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     MarketStructs.PoolInfo public poolInfo;
     MarketStructs.FundingInfo public fundingInfo;
     MarketStructs.PriceLimitInfo public priceLimitInfo;
-    MarketStructs.OrderBookSideInfo orderBookInfoAsk;
-    MarketStructs.OrderBookSideInfo orderBookInfoBid;
     MarketStructs.OrderBookInfo orderBookInfo;
 
     uint24 public poolFeeRatio = 3e3;
@@ -92,7 +90,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         OrderBookLibrary.SwapResponse memory swapResponse;
         if (isBaseToQuote) {
             swapResponse = OrderBookLibrary.swap(
-                orderBookInfoBid,
                 orderBookInfo,
                 OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
@@ -102,13 +99,10 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
-                _poolSwap,
-                orderBookAggregateBid,
-                orderBookSubtreeRemovedBid
+                _poolSwap
             );
         } else {
             swapResponse = OrderBookLibrary.swap(
-                orderBookInfoAsk,
                 orderBookInfo,
                 OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
@@ -118,9 +112,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
-                _poolSwap,
-                orderBookAggregateAsk,
-                orderBookSubtreeRemovedAsk
+                _poolSwap
             );
         }
         response = SwapResponse({
@@ -203,37 +195,16 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
         if (isBid) {
             require(priceX96 <= markPrice, "PM_CLO: post only bid");
-            orderId = OrderBookLibrary.createOrder(orderBookInfoBid, true, base, priceX96, orderBookAggregateBid);
         } else {
             require(priceX96 >= markPrice, "PM_CLO: post only ask");
-            orderId = OrderBookLibrary.createOrder(orderBookInfoAsk, false, base, priceX96, orderBookAggregateAsk);
         }
+        orderId = OrderBookLibrary.createOrder(orderBookInfo, isBid, base, priceX96);
         emit LimitOrderCreated(isBid, base, priceX96, orderId);
     }
 
     function cancelLimitOrder(bool isBid, uint40 orderId) external override onlyExchange nonReentrant {
-        if (isBid) {
-            OrderBookLibrary.cancelOrder(orderBookInfoBid, orderId, orderBookAggregateBid);
-        } else {
-            OrderBookLibrary.cancelOrder(orderBookInfoAsk, orderId, orderBookAggregateAsk);
-        }
+        OrderBookLibrary.cancelOrder(orderBookInfo, isBid, orderId);
         emit LimitOrderCanceled(isBid, orderId);
-    }
-
-    function orderBookAggregateAsk(uint40 key) private returns (bool stop) {
-        return OrderBookLibrary.aggregate(orderBookInfoAsk, key);
-    }
-
-    function orderBookAggregateBid(uint40 key) private returns (bool stop) {
-        return OrderBookLibrary.aggregate(orderBookInfoBid, key);
-    }
-
-    function orderBookSubtreeRemovedAsk(uint40 key) private {
-        return OrderBookLibrary.subtreeRemoved(orderBookInfoAsk, orderBookInfo, key);
-    }
-
-    function orderBookSubtreeRemovedBid(uint40 key) private {
-        return OrderBookLibrary.subtreeRemoved(orderBookInfoBid, orderBookInfo, key);
     }
 
     function setPoolFeeRatio(uint24 value) external onlyOwner nonReentrant {
@@ -287,7 +258,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
         OrderBookLibrary.PreviewSwapResponse memory response =
             OrderBookLibrary.previewSwap(
-                isBaseToQuote ? orderBookInfoBid : orderBookInfoAsk,
+                isBaseToQuote ? orderBookInfo.bid : orderBookInfo.ask,
                 OrderBookLibrary.PreviewSwapParams({
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
@@ -388,11 +359,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
             uint256 executedQuote
         )
     {
-        if (isBid) {
-            return OrderBookLibrary.getOrderExecution(orderBookInfoBid, orderBookInfo, orderId);
-        } else {
-            return OrderBookLibrary.getOrderExecution(orderBookInfoAsk, orderBookInfo, orderId);
-        }
+        return OrderBookLibrary.getOrderExecution(orderBookInfo, isBid, orderId);
     }
 
     function _processFunding() internal {
@@ -450,7 +417,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         );
 
         amount += OrderBookLibrary.maxSwap(
-            isBaseToQuote ? orderBookInfoBid : orderBookInfoAsk,
+            isBaseToQuote ? orderBookInfo.bid : orderBookInfo.ask,
             isBaseToQuote,
             isExactInput,
             sharePriceBound,

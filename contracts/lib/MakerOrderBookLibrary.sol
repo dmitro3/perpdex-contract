@@ -50,10 +50,11 @@ library MakerOrderBookLibrary {
         orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(params.isBid, params.base, params.priceX96);
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
+        uint256 slot = getSlot(limitOrderInfo);
         if (params.isBid) {
-            limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), lessThanBid, aggregate);
+            limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), lessThanBid, aggregate, slot);
         } else {
-            limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate);
+            limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate, slot);
         }
 
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
@@ -75,9 +76,9 @@ library MakerOrderBookLibrary {
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         if (params.isBid) {
-            limitOrderInfo.bid.remove(params.orderId, aggregate);
+            limitOrderInfo.bid.remove(params.orderId, aggregate, 0);
         } else {
-            limitOrderInfo.ask.remove(params.orderId, aggregate);
+            limitOrderInfo.ask.remove(params.orderId, aggregate, 0);
         }
 
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
@@ -91,8 +92,9 @@ library MakerOrderBookLibrary {
         return userData;
     }
 
-    function lessThanAsk(
+    function lessThan(
         RBTreeLibrary.Tree storage tree,
+        bool isBid,
         uint40 key0,
         uint40 key1
     ) private view returns (bool) {
@@ -102,28 +104,32 @@ library MakerOrderBookLibrary {
             return key0 < key1; // time priority
         }
         // price priority
-        return price0 < price1;
+        return isBid ? price0 > price1 : price0 < price1;
+    }
+
+    function lessThanAsk(
+        uint40 key0,
+        uint40 key1,
+        uint256 slot
+    ) private view returns (bool) {
+        PerpdexStructs.LimitOrderInfo storage info = getLimitOrderInfoFromSlot(slot);
+        return lessThan(info.ask, false, key0, key1);
     }
 
     function lessThanBid(
-        RBTreeLibrary.Tree storage tree,
         uint40 key0,
-        uint40 key1
+        uint40 key1,
+        uint256 slot
     ) private view returns (bool) {
-        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
-        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
-        if (price0 == price1) {
-            return key0 < key1; // time priority
-        }
-        // price priority
-        return price0 > price1;
+        PerpdexStructs.LimitOrderInfo storage info = getLimitOrderInfoFromSlot(slot);
+        return lessThan(info.bid, true, key0, key1);
     }
 
-    function aggregate(uint40 key) private pure returns (bool) {
+    function aggregate(uint40 key, uint256 slot) private pure returns (bool) {
         return true;
     }
 
-    function subtreeRemoved(uint40 key) private pure {}
+    function subtreeRemoved(uint40 key, uint256 slot) private pure {}
 
     function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) internal {
         address[] storage markets = accountInfo.markets;
@@ -146,11 +152,12 @@ library MakerOrderBookLibrary {
             uint40 executedLastBidOrderId
         ) = AccountPreviewLibrary.getLimitOrderExecutions(accountInfo, market);
 
+        uint256 slot = getSlot(limitOrderInfo);
         if (executedLastAskOrderId != 0) {
-            limitOrderInfo.ask.removeLeft(executedLastAskOrderId, lessThanAsk, aggregate, subtreeRemoved);
+            limitOrderInfo.ask.removeLeft(executedLastAskOrderId, lessThanAsk, aggregate, subtreeRemoved, slot);
         }
         if (executedLastBidOrderId != 0) {
-            limitOrderInfo.bid.removeLeft(executedLastBidOrderId, lessThanBid, aggregate, subtreeRemoved);
+            limitOrderInfo.bid.removeLeft(executedLastBidOrderId, lessThanBid, aggregate, subtreeRemoved, slot);
         }
 
         uint256 length = executions.length;
@@ -163,6 +170,18 @@ library MakerOrderBookLibrary {
                 0,
                 maxMarketsPerAccount
             );
+        }
+    }
+
+    function getSlot(PerpdexStructs.LimitOrderInfo storage d) private pure returns (uint256 slot) {
+        assembly {
+            slot := d.slot
+        }
+    }
+
+    function getLimitOrderInfoFromSlot(uint256 slot) private pure returns (PerpdexStructs.LimitOrderInfo storage d) {
+        assembly {
+            d.slot := slot
         }
     }
 }

@@ -53,6 +53,8 @@ library MarketStructs {
     }
 
     struct OrderBookInfo {
+        OrderBookSideInfo ask;
+        OrderBookSideInfo bid;
         uint48 seqExecutionId;
         mapping(uint48 => ExecutionInfo) executionInfos;
     }
