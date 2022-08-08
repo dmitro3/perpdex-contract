@@ -44,7 +44,7 @@ library MakerOrderBookLibrary {
     }
 
     function createLimitOrder(PerpdexStructs.AccountInfo storage accountInfo, CreateLimitOrderParams memory params)
-        internal
+        public
         returns (uint40 orderId)
     {
         orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(params.isBid, params.base, params.priceX96);
@@ -63,7 +63,7 @@ library MakerOrderBookLibrary {
     }
 
     function cancelLimitOrder(PerpdexStructs.AccountInfo storage accountInfo, CancelLimitOrderParams memory params)
-        internal
+        public
         returns (bool isLiquidation)
     {
         isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, params.mmRatio);
@@ -131,7 +131,7 @@ library MakerOrderBookLibrary {
 
     function subtreeRemoved(uint40 key, uint256 slot) private pure {}
 
-    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) internal {
+    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) public {
         address[] storage markets = accountInfo.markets;
         uint256 i = markets.length;
         while (i > 0) {
@@ -144,7 +144,7 @@ library MakerOrderBookLibrary {
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         uint8 maxMarketsPerAccount
-    ) internal {
+    ) private {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         (
             AccountPreviewLibrary.Execution[] memory executions,
