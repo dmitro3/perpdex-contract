@@ -106,7 +106,7 @@ library MakerLibrary {
         uint256 addedToken,
         uint256 cumBefore,
         uint256 cumAfter
-    ) internal pure returns (uint256) {
+    ) private pure returns (uint256) {
         uint256 liquidityAfter = liquidityBefore.add(addedLiquidity);
         cumAfter = cumAfter.add(PRBMath.mulDiv(addedToken, FixedPoint96.Q96, addedLiquidity));
 
