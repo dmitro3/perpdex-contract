@@ -41,6 +41,7 @@ const config: HardhatUserConfig = {
             },
             experimental: {
                 dockerImage: "matterlabs/zksolc",
+                tag: "v1.1.2",
             },
         },
     },
