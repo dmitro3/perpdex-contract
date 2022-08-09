@@ -31,8 +31,8 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         uint32 emaSec
     );
 
-    string public override symbol;
-    address public immutable override exchange;
+    string public symbol;
+    address public immutable exchange;
     address public immutable priceFeedBase;
     address public immutable priceFeedQuote;
 
@@ -82,7 +82,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         bool isExactInput,
         uint256 amount,
         bool isLiquidation
-    ) external override onlyExchange nonReentrant returns (SwapResponse memory response) {
+    ) external onlyExchange nonReentrant returns (SwapResponse memory response) {
         (uint256 maxAmount, MarketStructs.PriceLimitInfo memory updated) =
             _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
         require(amount <= maxAmount, "PM_S: too large amount");
@@ -148,7 +148,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
     function addLiquidity(uint256 baseShare, uint256 quoteBalance)
         external
-        override
         onlyExchange
         nonReentrant
         returns (
@@ -172,7 +171,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
     function removeLiquidity(uint256 liquidity)
         external
-        override
         onlyExchange
         nonReentrant
         returns (uint256 base, uint256 quote)
@@ -190,7 +188,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         bool isBid,
         uint256 base,
         uint256 priceX96
-    ) external override onlyExchange nonReentrant returns (uint40 orderId) {
+    ) external onlyExchange nonReentrant returns (uint40 orderId) {
         uint256 markPrice = getMarkPriceX96();
 
         if (isBid) {
@@ -202,7 +200,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         emit LimitOrderCreated(isBid, base, priceX96, orderId);
     }
 
-    function cancelLimitOrder(bool isBid, uint40 orderId) external override onlyExchange nonReentrant {
+    function cancelLimitOrder(bool isBid, uint40 orderId) external onlyExchange nonReentrant {
         OrderBookLibrary.cancelOrder(orderBookInfo, isBid, orderId);
         emit LimitOrderCanceled(isBid, orderId);
     }
@@ -252,7 +250,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         bool isExactInput,
         uint256 amount,
         bool isLiquidation
-    ) external view override returns (uint256 oppositeAmount) {
+    ) external view returns (uint256 oppositeAmount) {
         (uint256 maxAmount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
         require(amount <= maxAmount, "PM_PS: too large amount");
 
@@ -308,16 +306,16 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         bool isBaseToQuote,
         bool isExactInput,
         bool isLiquidation
-    ) external view override returns (uint256 amount) {
+    ) external view returns (uint256 amount) {
         (amount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
     }
 
-    function getShareMarkPriceX96() public view override returns (uint256) {
+    function getShareMarkPriceX96() public view returns (uint256) {
         if (poolInfo.base == 0) return 0;
         return PoolLibrary.getShareMarkPriceX96(poolInfo.base, poolInfo.quote);
     }
 
-    function getLiquidityValue(uint256 liquidity) external view override returns (uint256, uint256) {
+    function getLiquidityValue(uint256 liquidity) external view returns (uint256, uint256) {
         return PoolLibrary.getLiquidityValue(poolInfo, liquidity);
     }
 
@@ -325,7 +323,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         uint256 liquidity,
         uint256 cumBasePerLiquidityX96,
         uint256 cumQuotePerLiquidityX96
-    ) external view override returns (int256, int256) {
+    ) external view returns (int256, int256) {
         return
             PoolLibrary.getLiquidityDeleveraged(
                 poolInfo.cumBasePerLiquidityX96,
@@ -336,15 +334,15 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
             );
     }
 
-    function getCumDeleveragedPerLiquidityX96() external view override returns (uint256, uint256) {
+    function getCumDeleveragedPerLiquidityX96() external view returns (uint256, uint256) {
         return (poolInfo.cumBasePerLiquidityX96, poolInfo.cumQuotePerLiquidityX96);
     }
 
-    function baseBalancePerShareX96() external view override returns (uint256) {
+    function baseBalancePerShareX96() external view returns (uint256) {
         return poolInfo.baseBalancePerShareX96;
     }
 
-    function getMarkPriceX96() public view override returns (uint256) {
+    function getMarkPriceX96() public view returns (uint256) {
         if (poolInfo.base == 0) return 0;
         return PoolLibrary.getMarkPriceX96(poolInfo.base, poolInfo.quote, poolInfo.baseBalancePerShareX96);
     }
@@ -352,7 +350,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
     function getLimitOrderExecution(bool isBid, uint40 orderId)
         external
         view
-        override
         returns (
             uint256 executionId,
             uint256 executedBase,

@@ -24,22 +24,22 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     // states
     // trader
-    mapping(address => PerpdexStructs.AccountInfo) public override accountInfos;
-    PerpdexStructs.InsuranceFundInfo public override insuranceFundInfo;
-    PerpdexStructs.ProtocolInfo public override protocolInfo;
+    mapping(address => PerpdexStructs.AccountInfo) public accountInfos;
+    PerpdexStructs.InsuranceFundInfo public insuranceFundInfo;
+    PerpdexStructs.ProtocolInfo public protocolInfo;
     // market, isBid, orderId, trader
     mapping(address => mapping(bool => mapping(uint40 => address))) public orderIdToTrader;
 
     // config
-    address public immutable override settlementToken;
-    uint8 public constant override quoteDecimals = 18;
-    uint8 public override maxMarketsPerAccount = 16;
-    uint24 public override imRatio = 10e4;
-    uint24 public override mmRatio = 5e4;
-    uint24 public override protocolFeeRatio = 0;
-    PerpdexStructs.LiquidationRewardConfig public override liquidationRewardConfig =
+    address public immutable settlementToken;
+    uint8 public constant quoteDecimals = 18;
+    uint8 public maxMarketsPerAccount = 16;
+    uint24 public imRatio = 10e4;
+    uint24 public mmRatio = 5e4;
+    uint24 public protocolFeeRatio = 0;
+    PerpdexStructs.LiquidationRewardConfig public liquidationRewardConfig =
         PerpdexStructs.LiquidationRewardConfig({ rewardRatio: 20e4, smoothEmaTime: 100 });
-    mapping(address => bool) public override isMarketAllowed;
+    mapping(address => bool) public isMarketAllowed;
 
     modifier checkDeadline(uint256 deadline) {
         _checkDeadline(deadline);
@@ -57,7 +57,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         settlementToken = settlementTokenArg;
     }
 
-    function deposit(uint256 amount) external payable override nonReentrant {
+    function deposit(uint256 amount) external payable nonReentrant {
         address trader = _msgSender();
         _settleLimitOrders(trader);
 
@@ -75,7 +75,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         }
     }
 
-    function withdraw(uint256 amount) external override nonReentrant {
+    function withdraw(uint256 amount) external nonReentrant {
         address payable trader = payable(_msgSender());
         _settleLimitOrders(trader);
 
@@ -91,7 +91,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         emit Withdrawn(trader, amount);
     }
 
-    function transferProtocolFee(uint256 amount) external override onlyOwner nonReentrant {
+    function transferProtocolFee(uint256 amount) external onlyOwner nonReentrant {
         address trader = _msgSender();
         _settleLimitOrders(trader);
         VaultLibrary.transferProtocolFee(accountInfos[trader], protocolInfo, amount);
@@ -100,7 +100,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function trade(TradeParams calldata params)
         external
-        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
@@ -163,7 +162,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function addLiquidity(AddLiquidityParams calldata params)
         external
-        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
@@ -211,7 +209,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function removeLiquidity(RemoveLiquidityParams calldata params)
         external
-        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
@@ -255,7 +252,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function createLimitOrder(CreateLimitOrderParams calldata params)
         external
-        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
@@ -282,7 +278,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function cancelLimitOrder(CancelLimitOrderParams calldata params)
         external
-        override
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketAllowed(params.market)
@@ -310,19 +305,19 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         MakerOrderBookLibrary.settleLimitOrdersAll(accountInfos[trader], maxMarketsPerAccount);
     }
 
-    function setMaxMarketsPerAccount(uint8 value) external override onlyOwner nonReentrant {
+    function setMaxMarketsPerAccount(uint8 value) external onlyOwner nonReentrant {
         maxMarketsPerAccount = value;
         emit MaxMarketsPerAccountChanged(value);
     }
 
-    function setImRatio(uint24 value) external override onlyOwner nonReentrant {
+    function setImRatio(uint24 value) external onlyOwner nonReentrant {
         require(value < 1e6, "PE_SIR: too large");
         require(value >= mmRatio, "PE_SIR: smaller than mmRatio");
         imRatio = value;
         emit ImRatioChanged(value);
     }
 
-    function setMmRatio(uint24 value) external override onlyOwner nonReentrant {
+    function setMmRatio(uint24 value) external onlyOwner nonReentrant {
         require(value <= imRatio, "PE_SMR: bigger than imRatio");
         require(value > 0, "PE_SMR: zero");
         mmRatio = value;
@@ -331,7 +326,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function setLiquidationRewardConfig(PerpdexStructs.LiquidationRewardConfig calldata value)
         external
-        override
         onlyOwner
         nonReentrant
     {
@@ -341,13 +335,13 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         emit LiquidationRewardConfigChanged(value.rewardRatio, value.smoothEmaTime);
     }
 
-    function setProtocolFeeRatio(uint24 value) external override onlyOwner nonReentrant {
+    function setProtocolFeeRatio(uint24 value) external onlyOwner nonReentrant {
         require(value <= 1e4, "PE_SPFR: too large");
         protocolFeeRatio = value;
         emit ProtocolFeeRatioChanged(value);
     }
 
-    function setIsMarketAllowed(address market, bool value) external override onlyOwner nonReentrant {
+    function setIsMarketAllowed(address market, bool value) external onlyOwner nonReentrant {
         require(market.isContract(), "PE_SIMA: market address invalid");
         if (value) {
             require(IPerpdexMarketMinimum(market).exchange() == address(this), "PE_SIMA: different exchange");
@@ -358,25 +352,15 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     // all raw information can be retrieved through getters (including default getters)
 
-    function getTakerInfo(address trader, address market)
-        external
-        view
-        override
-        returns (PerpdexStructs.TakerInfo memory)
-    {
+    function getTakerInfo(address trader, address market) external view returns (PerpdexStructs.TakerInfo memory) {
         return accountInfos[trader].takerInfos[market];
     }
 
-    function getMakerInfo(address trader, address market)
-        external
-        view
-        override
-        returns (PerpdexStructs.MakerInfo memory)
-    {
+    function getMakerInfo(address trader, address market) external view returns (PerpdexStructs.MakerInfo memory) {
         return accountInfos[trader].makerInfos[market];
     }
 
-    function getAccountMarkets(address trader) external view override returns (address[] memory) {
+    function getAccountMarkets(address trader) external view returns (address[] memory) {
         return accountInfos[trader].markets;
     }
 
@@ -385,7 +369,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
     function previewTrade(PreviewTradeParams calldata params)
         external
         view
-        override
         checkMarketAllowed(params.market)
         returns (uint256 oppositeAmount)
     {
@@ -408,7 +391,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
             );
     }
 
-    function maxTrade(MaxTradeParams calldata params) external view override returns (uint256 amount) {
+    function maxTrade(MaxTradeParams calldata params) external view returns (uint256 amount) {
         if (!isMarketAllowed[params.market]) return 0;
 
         address trader = params.trader;
@@ -428,39 +411,39 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     // convenient getters
 
-    function getTotalAccountValue(address trader) external view override returns (int256 accountValue) {
+    function getTotalAccountValue(address trader) external view returns (int256 accountValue) {
         (accountValue, ) = AccountLibrary.getTotalAccountValue(accountInfos[trader]);
     }
 
-    function getPositionShare(address trader, address market) external view override returns (int256) {
+    function getPositionShare(address trader, address market) external view returns (int256) {
         return AccountLibrary.getPositionShare(accountInfos[trader], market);
     }
 
-    function getPositionNotional(address trader, address market) external view override returns (int256) {
+    function getPositionNotional(address trader, address market) external view returns (int256) {
         return AccountLibrary.getPositionNotional(accountInfos[trader], market);
     }
 
-    function getTotalPositionNotional(address trader) external view override returns (uint256) {
+    function getTotalPositionNotional(address trader) external view returns (uint256) {
         return AccountLibrary.getTotalPositionNotional(accountInfos[trader]);
     }
 
-    function getOpenPositionShare(address trader, address market) external view override returns (uint256) {
+    function getOpenPositionShare(address trader, address market) external view returns (uint256) {
         return AccountLibrary.getOpenPositionShare(accountInfos[trader], market);
     }
 
-    function getOpenPositionNotional(address trader, address market) external view override returns (uint256) {
+    function getOpenPositionNotional(address trader, address market) external view returns (uint256) {
         return AccountLibrary.getOpenPositionNotional(accountInfos[trader], market);
     }
 
-    function getTotalOpenPositionNotional(address trader) external view override returns (uint256) {
+    function getTotalOpenPositionNotional(address trader) external view returns (uint256) {
         return AccountLibrary.getTotalOpenPositionNotional(accountInfos[trader]);
     }
 
-    function hasEnoughMaintenanceMargin(address trader) external view override returns (bool) {
+    function hasEnoughMaintenanceMargin(address trader) external view returns (bool) {
         return AccountLibrary.hasEnoughMaintenanceMargin(accountInfos[trader], mmRatio);
     }
 
-    function hasEnoughInitialMargin(address trader) external view override returns (bool) {
+    function hasEnoughInitialMargin(address trader) external view returns (bool) {
         return AccountLibrary.hasEnoughInitialMargin(accountInfos[trader], imRatio);
     }
 
