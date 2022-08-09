@@ -10,7 +10,14 @@ interface TakerLibraryFixture {
 
 export function createTakerLibraryFixture(): (wallets, provider) => Promise<TakerLibraryFixture> {
     return async ([owner], provider): Promise<TakerLibraryFixture> => {
-        const factory = await ethers.getContractFactory("TestTakerLibrary")
+        const accountLibraryFactory = await ethers.getContractFactory("AccountLibrary")
+        const accountLibrary = await accountLibraryFactory.deploy()
+
+        const factory = await ethers.getContractFactory("TestTakerLibrary", {
+            libraries: {
+                AccountLibrary: accountLibrary.address,
+            },
+        })
         const takerLibrary = (await factory.deploy()) as TestTakerLibrary
 
         const market = await waffle.deployMockContract(owner, IPerpdexMarketJson.abi)

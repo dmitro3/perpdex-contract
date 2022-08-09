@@ -1,5 +1,5 @@
 import { ethers, waffle } from "hardhat"
-import { TestPerpdexMarket } from "../../typechain"
+import { TestPerpdexMarket, OrderBookLibrary } from "../../typechain"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
 import { BigNumber, Wallet } from "ethers"
@@ -11,6 +11,7 @@ interface PerpdexMarketFixture {
     alice: Wallet
     bob: Wallet
     exchange: Wallet
+    orderBookLibrary: OrderBookLibrary
 }
 
 export function createPerpdexMarketFixture(): (wallets, provider) => Promise<PerpdexMarketFixture> {
@@ -19,7 +20,14 @@ export function createPerpdexMarketFixture(): (wallets, provider) => Promise<Per
         await priceFeed.mock.getPrice.returns(BigNumber.from(10).pow(18))
         await priceFeed.mock.decimals.returns(18)
 
-        const perpdexMarketFactory = await ethers.getContractFactory("TestPerpdexMarket")
+        const orderBookLibraryFactory = await ethers.getContractFactory("OrderBookLibrary")
+        const orderBookLibrary = await orderBookLibraryFactory.deploy()
+
+        const perpdexMarketFactory = await ethers.getContractFactory("TestPerpdexMarket", {
+            libraries: {
+                OrderBookLibrary: orderBookLibrary.address,
+            },
+        })
         const perpdexMarket = (await perpdexMarketFactory.deploy(
             "USD",
             exchange.address,
@@ -34,6 +42,7 @@ export function createPerpdexMarketFixture(): (wallets, provider) => Promise<Per
             alice,
             bob,
             exchange,
+            orderBookLibrary,
         }
     }
 }
