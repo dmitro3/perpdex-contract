@@ -10,6 +10,7 @@ describe("PerpdexMarket constructor", () => {
 
     let priceFeed: MockContract
     let exchange: Wallet
+    let factory
     const symbol = "test"
     const invalidAddress = "0x0000000000000000000000000000000000000001"
 
@@ -17,11 +18,15 @@ describe("PerpdexMarket constructor", () => {
         fixture = await loadFixture(createPerpdexMarketFixture())
         priceFeed = fixture.priceFeed
         exchange = fixture.alice
+        factory = await ethers.getContractFactory("PerpdexMarket", {
+            libraries: {
+                OrderBookLibrary: fixture.orderBookLibrary.address,
+            },
+        })
     })
 
     describe("constructor", () => {
         it("zero", async () => {
-            const factory = await ethers.getContractFactory("PerpdexMarket")
             await expect(
                 factory.deploy(
                     symbol,
@@ -33,19 +38,16 @@ describe("PerpdexMarket constructor", () => {
         })
 
         it("contract", async () => {
-            const factory = await ethers.getContractFactory("PerpdexMarket")
             await expect(factory.deploy(symbol, exchange.address, priceFeed.address, priceFeed.address)).not.to.reverted
         })
 
         it("invalid base", async () => {
-            const factory = await ethers.getContractFactory("PerpdexMarket")
             await expect(
                 factory.deploy(symbol, exchange.address, invalidAddress, hre.ethers.constants.AddressZero),
             ).to.revertedWith("PM_C: base price feed invalid")
         })
 
         it("invalid quote", async () => {
-            const factory = await ethers.getContractFactory("PerpdexMarket")
             await expect(
                 factory.deploy(symbol, exchange.address, hre.ethers.constants.AddressZero, invalidAddress),
             ).to.revertedWith("PM_C: quote price feed invalid")

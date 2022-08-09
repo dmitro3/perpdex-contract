@@ -9,6 +9,7 @@ import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
+import { AccountPreviewLibrary } from "./AccountPreviewLibrary.sol";
 
 // https://help.ftx.com/hc/en-us/articles/360024780511-Complete-Futures-Specs
 library AccountLibrary {
@@ -22,9 +23,12 @@ library AccountLibrary {
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         uint8 maxMarketsPerAccount
-    ) internal {
+    ) public {
         bool enabled =
-            accountInfo.takerInfos[market].baseBalanceShare != 0 || accountInfo.makerInfos[market].liquidity != 0;
+            accountInfo.takerInfos[market].baseBalanceShare != 0 ||
+                accountInfo.makerInfos[market].liquidity != 0 ||
+                accountInfo.limitOrderInfos[market].ask.root != 0 ||
+                accountInfo.limitOrderInfos[market].bid.root != 0;
         address[] storage markets = accountInfo.markets;
         uint256 length = markets.length;
 
@@ -44,16 +48,24 @@ library AccountLibrary {
         markets.push(market);
     }
 
-    function getTotalAccountValue(PerpdexStructs.AccountInfo storage accountInfo) internal view returns (int256) {
+    function getTotalAccountValue(PerpdexStructs.AccountInfo storage accountInfo)
+        public
+        view
+        returns (int256 accountValue, int256 collateralBalance)
+    {
         address[] storage markets = accountInfo.markets;
-        int256 accountValue = accountInfo.vaultInfo.collateralBalance;
+        collateralBalance = accountInfo.vaultInfo.collateralBalance;
         uint256 length = markets.length;
         for (uint256 i = 0; i < length; ++i) {
             address market = markets[i];
 
             PerpdexStructs.MakerInfo storage makerInfo = accountInfo.makerInfos[market];
-            int256 baseShare = accountInfo.takerInfos[market].baseBalanceShare;
-            int256 quoteBalance = accountInfo.takerInfos[market].quoteBalance;
+
+            (PerpdexStructs.TakerInfo memory takerInfo, int256 realizedPnl) =
+                AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market);
+            int256 baseShare = takerInfo.baseBalanceShare;
+            int256 quoteBalance = takerInfo.quoteBalance;
+            collateralBalance = collateralBalance.add(realizedPnl);
 
             if (makerInfo.liquidity != 0) {
                 (uint256 poolBaseShare, uint256 poolQuoteBalance) =
@@ -74,16 +86,19 @@ library AccountLibrary {
             }
             accountValue = accountValue.add(quoteBalance);
         }
-        return accountValue;
+        accountValue = accountValue.add(collateralBalance);
     }
 
     function getPositionShare(PerpdexStructs.AccountInfo storage accountInfo, address market)
-        internal
+        public
         view
         returns (int256 baseShare)
     {
         PerpdexStructs.MakerInfo storage makerInfo = accountInfo.makerInfos[market];
-        baseShare = accountInfo.takerInfos[market].baseBalanceShare;
+        (PerpdexStructs.TakerInfo memory takerInfo, ) =
+            AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market);
+        baseShare = takerInfo.baseBalanceShare;
+
         if (makerInfo.liquidity != 0) {
             (uint256 poolBaseShare, ) = IPerpdexMarketMinimum(market).getLiquidityValue(makerInfo.liquidity);
             (int256 deleveragedBaseShare, ) =
@@ -97,7 +112,7 @@ library AccountLibrary {
     }
 
     function getPositionNotional(PerpdexStructs.AccountInfo storage accountInfo, address market)
-        internal
+        public
         view
         returns (int256)
     {
@@ -107,7 +122,7 @@ library AccountLibrary {
         return positionShare.mulDiv(sharePriceX96.toInt256(), FixedPoint96.Q96);
     }
 
-    function getTotalPositionNotional(PerpdexStructs.AccountInfo storage accountInfo) internal view returns (uint256) {
+    function getTotalPositionNotional(PerpdexStructs.AccountInfo storage accountInfo) public view returns (uint256) {
         address[] storage markets = accountInfo.markets;
         uint256 totalPositionNotional;
         uint256 length = markets.length;
@@ -119,7 +134,7 @@ library AccountLibrary {
     }
 
     function getOpenPositionShare(PerpdexStructs.AccountInfo storage accountInfo, address market)
-        internal
+        public
         view
         returns (uint256 result)
     {
@@ -132,7 +147,7 @@ library AccountLibrary {
     }
 
     function getOpenPositionNotional(PerpdexStructs.AccountInfo storage accountInfo, address market)
-        internal
+        public
         view
         returns (uint256)
     {
@@ -143,7 +158,7 @@ library AccountLibrary {
     }
 
     function getTotalOpenPositionNotional(PerpdexStructs.AccountInfo storage accountInfo)
-        internal
+        public
         view
         returns (uint256)
     {
@@ -159,29 +174,28 @@ library AccountLibrary {
 
     // always true when hasEnoughMaintenanceMargin is true
     function hasEnoughMaintenanceMargin(PerpdexStructs.AccountInfo storage accountInfo, uint24 mmRatio)
-        internal
+        public
         view
         returns (bool)
     {
-        int256 accountValue = getTotalAccountValue(accountInfo);
+        (int256 accountValue, ) = getTotalAccountValue(accountInfo);
         uint256 totalPositionNotional = getTotalPositionNotional(accountInfo);
         return accountValue >= totalPositionNotional.mulRatio(mmRatio).toInt256();
     }
 
     function hasEnoughInitialMargin(PerpdexStructs.AccountInfo storage accountInfo, uint24 imRatio)
-        internal
+        public
         view
         returns (bool)
     {
-        int256 accountValue = getTotalAccountValue(accountInfo);
+        (int256 accountValue, int256 collateralBalance) = getTotalAccountValue(accountInfo);
         uint256 totalOpenPositionNotional = getTotalOpenPositionNotional(accountInfo);
         return
-            accountValue.min(accountInfo.vaultInfo.collateralBalance) >=
-            totalOpenPositionNotional.mulRatio(imRatio).toInt256() ||
+            accountValue.min(collateralBalance) >= totalOpenPositionNotional.mulRatio(imRatio).toInt256() ||
             isLiquidationFree(accountInfo);
     }
 
-    function isLiquidationFree(PerpdexStructs.AccountInfo storage accountInfo) internal view returns (bool) {
+    function isLiquidationFree(PerpdexStructs.AccountInfo storage accountInfo) public view returns (bool) {
         address[] storage markets = accountInfo.markets;
         int256 quoteBalance = accountInfo.vaultInfo.collateralBalance;
         uint256 length = markets.length;
@@ -189,8 +203,11 @@ library AccountLibrary {
             address market = markets[i];
 
             PerpdexStructs.MakerInfo storage makerInfo = accountInfo.makerInfos[market];
-            int256 baseShare = accountInfo.takerInfos[market].baseBalanceShare;
-            quoteBalance = quoteBalance.add(accountInfo.takerInfos[market].quoteBalance);
+            (PerpdexStructs.TakerInfo memory takerInfo, int256 realizedPnl) =
+                AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market);
+
+            int256 baseShare = takerInfo.baseBalanceShare;
+            quoteBalance = quoteBalance.add(takerInfo.quoteBalance).add(realizedPnl);
 
             if (makerInfo.liquidity != 0) {
                 (int256 deleveragedBaseShare, int256 deleveragedQuoteBalance) =

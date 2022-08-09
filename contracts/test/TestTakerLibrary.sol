@@ -48,7 +48,7 @@ contract TestTakerLibrary {
         uint24 protocolFeeRatio,
         bool isLiquidation
     ) external {
-        (uint256 oppositeAmount, uint256 protocolFee) =
+        (uint256 oppositeAmount, uint256 protocolFee, ) =
             TakerLibrary.swapWithProtocolFee(
                 protocolInfo,
                 market,

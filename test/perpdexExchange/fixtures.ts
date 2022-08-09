@@ -1,5 +1,11 @@
 import { ethers, waffle } from "hardhat"
-import { TestPerpdexExchange, TestPerpdexMarket, TestERC20 } from "../../typechain"
+import {
+    TestPerpdexExchange,
+    TestPerpdexMarket,
+    TestERC20,
+    AccountLibrary,
+    MakerOrderBookLibrary,
+} from "../../typechain"
 import { BigNumber, Wallet } from "ethers"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
@@ -15,6 +21,8 @@ export interface PerpdexExchangeFixture {
     carol: Wallet
     priceFeed: MockContract
     priceFeeds: MockContract[]
+    accountLibrary: AccountLibrary
+    makerOrderBookLibrary: MakerOrderBookLibrary
 }
 
 interface Params {
@@ -37,11 +45,31 @@ export function createPerpdexExchangeFixture(
             USDC = (await tokenFactory.deploy("TestUSDC", "USDC", 6)) as TestERC20
             settlementToken = USDC.address
         }
+        const accountLibraryFactory = await ethers.getContractFactory("AccountLibrary")
+        const accountLibrary = await accountLibraryFactory.deploy()
+        const makerOrderBookLibraryFactory = await ethers.getContractFactory("MakerOrderBookLibrary", {
+            libraries: {
+                AccountLibrary: accountLibrary.address,
+            },
+        })
+        const makerOrderBookLibrary = await makerOrderBookLibraryFactory.deploy()
 
-        const perpdexExchangeFactory = await ethers.getContractFactory("TestPerpdexExchange")
+        const perpdexExchangeFactory = await ethers.getContractFactory("TestPerpdexExchange", {
+            libraries: {
+                AccountLibrary: accountLibrary.address,
+                MakerOrderBookLibrary: makerOrderBookLibrary.address,
+            },
+        })
         const perpdexExchange = (await perpdexExchangeFactory.deploy(settlementToken)) as TestPerpdexExchange
 
-        const perpdexMarketFactory = await ethers.getContractFactory("TestPerpdexMarket")
+        const orderBookLibraryFactory = await ethers.getContractFactory("OrderBookLibrary")
+        const orderBookLibrary = await orderBookLibraryFactory.deploy()
+
+        const perpdexMarketFactory = await ethers.getContractFactory("TestPerpdexMarket", {
+            libraries: {
+                OrderBookLibrary: orderBookLibrary.address,
+            },
+        })
         const perpdexMarkets = []
         const priceFeeds = []
         for (let i = 0; i < 3; i++) {
@@ -89,6 +117,8 @@ export function createPerpdexExchangeFixture(
             carol,
             priceFeed,
             priceFeeds,
+            accountLibrary,
+            makerOrderBookLibrary,
         }
     }
 }

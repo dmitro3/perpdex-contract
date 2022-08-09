@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >=0.7.6;
 
+import {
+    BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
+} from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
+
 library MarketStructs {
     struct FundingInfo {
         uint256 prevIndexPriceBase;
@@ -29,5 +33,29 @@ library MarketStructs {
         uint24 emaNormalOrderRatio;
         uint24 emaLiquidationRatio;
         uint32 emaSec;
+    }
+
+    struct OrderInfo {
+        uint256 base;
+        uint256 baseSum;
+        uint256 quoteSum;
+        uint48 executionId;
+    }
+
+    struct OrderBookSideInfo {
+        RBTreeLibrary.Tree tree;
+        mapping(uint40 => OrderInfo) orderInfos;
+        uint40 seqKey;
+    }
+
+    struct ExecutionInfo {
+        uint256 baseBalancePerShareX96;
+    }
+
+    struct OrderBookInfo {
+        OrderBookSideInfo ask;
+        OrderBookSideInfo bid;
+        uint48 seqExecutionId;
+        mapping(uint48 => ExecutionInfo) executionInfos;
     }
 }

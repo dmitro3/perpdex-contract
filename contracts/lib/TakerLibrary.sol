@@ -11,6 +11,7 @@ import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpMath } from "./PerpMath.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
 import { AccountLibrary } from "./AccountLibrary.sol";
+import { AccountPreviewLibrary } from "./AccountPreviewLibrary.sol";
 
 library TakerLibrary {
     using PerpMath for int256;
@@ -53,6 +54,7 @@ library TakerLibrary {
         uint256 liquidationReward;
         uint256 insuranceFundReward;
         bool isLiquidation;
+        IPerpdexMarketMinimum.SwapResponse rawResponse;
     }
 
     function trade(
@@ -74,17 +76,19 @@ library TakerLibrary {
 
         int256 takerBaseBefore = accountInfo.takerInfos[params.market].baseBalanceShare;
 
-        (response.base, response.quote, response.realizedPnl, response.protocolFee) = _doSwap(
+        (response.base, response.quote, response.realizedPnl, response.protocolFee, response.rawResponse) = _doSwap(
             accountInfo,
             protocolInfo,
-            params.market,
-            params.isBaseToQuote,
-            params.isExactInput,
-            params.amount,
-            params.oppositeAmountBound,
-            params.maxMarketsPerAccount,
-            params.protocolFeeRatio,
-            response.isLiquidation
+            DoSwapParams({
+                market: params.market,
+                isBaseToQuote: params.isBaseToQuote,
+                isExactInput: params.isExactInput,
+                amount: params.amount,
+                oppositeAmountBound: params.oppositeAmountBound,
+                maxMarketsPerAccount: params.maxMarketsPerAccount,
+                protocolFeeRatio: params.protocolFeeRatio,
+                isLiquidation: response.isLiquidation
+            })
         );
 
         bool isOpen = (takerBaseBefore.add(response.base)).sign() * response.base.sign() > 0;
@@ -119,36 +123,13 @@ library TakerLibrary {
         int256 quoteFee,
         uint8 maxMarketsPerAccount
     ) internal returns (int256 realizedPnl) {
-        PerpdexStructs.TakerInfo storage takerInfo = accountInfo.takerInfos[market];
-
-        if (baseShare != 0 || quoteBalance != 0) {
-            require(baseShare.sign() * quoteBalance.sign() == -1, "TL_ATTB: invalid input");
-
-            if (takerInfo.baseBalanceShare.sign() * baseShare.sign() == -1) {
-                uint256 baseAbs = baseShare.abs();
-                uint256 takerBaseAbs = takerInfo.baseBalanceShare.abs();
-
-                if (baseAbs <= takerBaseAbs) {
-                    int256 reducedOpenNotional = takerInfo.quoteBalance.mulDiv(baseAbs.toInt256(), takerBaseAbs);
-                    realizedPnl = quoteBalance.add(reducedOpenNotional);
-                } else {
-                    int256 closedPositionNotional = quoteBalance.mulDiv(takerBaseAbs.toInt256(), baseAbs);
-                    realizedPnl = takerInfo.quoteBalance.add(closedPositionNotional);
-                }
-            }
-        }
-        realizedPnl = realizedPnl.add(quoteFee);
-
-        int256 newBaseBalanceShare = takerInfo.baseBalanceShare.add(baseShare);
-        int256 newQuoteBalance = takerInfo.quoteBalance.add(quoteBalance).add(quoteFee).sub(realizedPnl);
-        require(
-            (newBaseBalanceShare == 0 && newQuoteBalance == 0) ||
-                newBaseBalanceShare.sign() * newQuoteBalance.sign() == -1,
-            "TL_ATTB: never occur"
+        (accountInfo.takerInfos[market], realizedPnl) = AccountPreviewLibrary.previewAddToTakerBalance(
+            accountInfo.takerInfos[market],
+            baseShare,
+            quoteBalance,
+            quoteFee
         );
 
-        takerInfo.baseBalanceShare = newBaseBalanceShare;
-        takerInfo.quoteBalance = newQuoteBalance;
         accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(realizedPnl);
 
         AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);
@@ -220,45 +201,62 @@ library TakerLibrary {
         }
     }
 
+    // to avoid stack too deep
+    struct DoSwapParams {
+        address market;
+        bool isBaseToQuote;
+        bool isExactInput;
+        uint256 amount;
+        uint256 oppositeAmountBound;
+        uint8 maxMarketsPerAccount;
+        uint24 protocolFeeRatio;
+        bool isLiquidation;
+    }
+
     function _doSwap(
         PerpdexStructs.AccountInfo storage accountInfo,
         PerpdexStructs.ProtocolInfo storage protocolInfo,
-        address market,
-        bool isBaseToQuote,
-        bool isExactInput,
-        uint256 amount,
-        uint256 oppositeAmountBound,
-        uint8 maxMarketsPerAccount,
-        uint24 protocolFeeRatio,
-        bool isLiquidation
+        DoSwapParams memory params
     )
         private
         returns (
             int256 base,
             int256 quote,
             int256 realizedPnl,
-            uint256 protocolFee
+            uint256 protocolFee,
+            IPerpdexMarketMinimum.SwapResponse memory rawResponse
         )
     {
         uint256 oppositeAmount;
 
-        if (protocolFeeRatio > 0) {
-            (oppositeAmount, protocolFee) = swapWithProtocolFee(
+        if (params.protocolFeeRatio > 0) {
+            (oppositeAmount, protocolFee, rawResponse) = swapWithProtocolFee(
                 protocolInfo,
-                market,
-                isBaseToQuote,
-                isExactInput,
-                amount,
-                protocolFeeRatio,
-                isLiquidation
+                params.market,
+                params.isBaseToQuote,
+                params.isExactInput,
+                params.amount,
+                params.protocolFeeRatio,
+                params.isLiquidation
             );
         } else {
-            oppositeAmount = IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+            rawResponse = IPerpdexMarketMinimum(params.market).swap(
+                params.isBaseToQuote,
+                params.isExactInput,
+                params.amount,
+                params.isLiquidation
+            );
+            oppositeAmount = rawResponse.oppositeAmount;
         }
-        validateSlippage(isExactInput, oppositeAmount, oppositeAmountBound);
+        validateSlippage(params.isExactInput, oppositeAmount, params.oppositeAmountBound);
 
-        (base, quote) = swapResponseToBaseQuote(isBaseToQuote, isExactInput, amount, oppositeAmount);
-        realizedPnl = addToTakerBalance(accountInfo, market, base, quote, 0, maxMarketsPerAccount);
+        (base, quote) = swapResponseToBaseQuote(
+            params.isBaseToQuote,
+            params.isExactInput,
+            params.amount,
+            oppositeAmount
+        );
+        realizedPnl = addToTakerBalance(accountInfo, params.market, base, quote, 0, params.maxMarketsPerAccount);
     }
 
     function swapWithProtocolFee(
@@ -269,33 +267,43 @@ library TakerLibrary {
         uint256 amount,
         uint24 protocolFeeRatio,
         bool isLiquidation
-    ) internal returns (uint256 oppositeAmount, uint256 protocolFee) {
+    )
+        internal
+        returns (
+            uint256 oppositeAmount,
+            uint256 protocolFee,
+            IPerpdexMarketMinimum.SwapResponse memory rawResponse
+        )
+    {
         if (isExactInput) {
             if (isBaseToQuote) {
-                oppositeAmount = IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+                rawResponse = IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+                oppositeAmount = rawResponse.oppositeAmount;
                 protocolFee = oppositeAmount.mulRatio(protocolFeeRatio);
                 oppositeAmount = oppositeAmount.sub(protocolFee);
             } else {
                 protocolFee = amount.mulRatio(protocolFeeRatio);
-                oppositeAmount = IPerpdexMarketMinimum(market).swap(
+                rawResponse = IPerpdexMarketMinimum(market).swap(
                     isBaseToQuote,
                     isExactInput,
                     amount.sub(protocolFee),
                     isLiquidation
                 );
+                oppositeAmount = rawResponse.oppositeAmount;
             }
         } else {
             if (isBaseToQuote) {
                 protocolFee = amount.divRatio(PerpMath.subRatio(1e6, protocolFeeRatio)).sub(amount);
-                oppositeAmount = IPerpdexMarketMinimum(market).swap(
+                rawResponse = IPerpdexMarketMinimum(market).swap(
                     isBaseToQuote,
                     isExactInput,
                     amount.add(protocolFee),
                     isLiquidation
                 );
+                oppositeAmount = rawResponse.oppositeAmount;
             } else {
-                uint256 oppositeAmountWithoutFee =
-                    IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+                rawResponse = IPerpdexMarketMinimum(market).swap(isBaseToQuote, isExactInput, amount, isLiquidation);
+                uint256 oppositeAmountWithoutFee = rawResponse.oppositeAmount;
                 oppositeAmount = oppositeAmountWithoutFee.divRatio(PerpMath.subRatio(1e6, protocolFeeRatio));
                 protocolFee = oppositeAmount.sub(oppositeAmountWithoutFee);
             }

@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >=0.7.6;
 
+import {
+    BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
+} from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
+
 library PerpdexStructs {
     struct TakerInfo {
         int256 baseBalanceShare;
@@ -13,6 +17,11 @@ library PerpdexStructs {
         uint256 cumQuotePerLiquidityX96;
     }
 
+    struct LimitOrderInfo {
+        RBTreeLibrary.Tree ask;
+        RBTreeLibrary.Tree bid;
+    }
+
     struct VaultInfo {
         int256 collateralBalance;
     }
@@ -22,6 +31,8 @@ library PerpdexStructs {
         mapping(address => TakerInfo) takerInfos;
         // market
         mapping(address => MakerInfo) makerInfos;
+        // market
+        mapping(address => LimitOrderInfo) limitOrderInfos;
         VaultInfo vaultInfo;
         address[] markets;
     }

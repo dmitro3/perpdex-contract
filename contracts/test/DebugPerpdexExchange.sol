@@ -12,6 +12,7 @@ contract DebugPerpdexExchange is PerpdexExchange {
     uint256 private constant _ZKSYNC2_TESTNET_CHAIN_ID = 0;
     uint256 private constant _ARBITRUM_RINKEBY_CHAIN_ID = 421611;
     uint256 private constant _OPTIMISM_KOVAN_CHAIN_ID = 69;
+    uint256 private constant _HARDHAT_CHAIN_ID = 31337;
 
     constructor(address settlementTokenArg) PerpdexExchange(settlementTokenArg) {
         uint256 chainId;
@@ -24,7 +25,8 @@ contract DebugPerpdexExchange is PerpdexExchange {
                 chainId == _SHIBUYA_CHAIN_ID ||
                 chainId == _ZKSYNC2_TESTNET_CHAIN_ID ||
                 chainId == _ARBITRUM_RINKEBY_CHAIN_ID ||
-                chainId == _OPTIMISM_KOVAN_CHAIN_ID,
+                chainId == _OPTIMISM_KOVAN_CHAIN_ID ||
+                chainId == _HARDHAT_CHAIN_ID,
             "DPE_C: testnet only"
         );
     }

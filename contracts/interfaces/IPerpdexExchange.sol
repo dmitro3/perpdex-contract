@@ -51,6 +51,21 @@ interface IPerpdexExchange {
         bool isExactInput;
     }
 
+    struct CreateLimitOrderParams {
+        address market;
+        bool isBid;
+        uint256 base;
+        uint256 priceX96;
+        uint256 deadline;
+    }
+
+    struct CancelLimitOrderParams {
+        address market;
+        bool isBid;
+        uint40 orderId;
+        uint256 deadline;
+    }
+
     event Deposited(address indexed trader, uint256 amount);
     event Withdrawn(address indexed trader, uint256 amount);
     event ProtocolFeeTransferred(address indexed trader, uint256 amount);
@@ -107,6 +122,22 @@ interface IPerpdexExchange {
         uint256 sharePriceAfterX96
     );
 
+    event LimitOrderCreated(
+        address indexed trader,
+        address indexed market,
+        bool isBid,
+        uint256 base,
+        uint256 priceX96,
+        uint256 orderId
+    );
+
+    event LimitOrderCanceled(
+        address indexed trader,
+        address indexed market,
+        address indexed liquidator,
+        uint256 orderId
+    );
+
     event MaxMarketsPerAccountChanged(uint8 value);
     event ImRatioChanged(uint24 value);
     event MmRatioChanged(uint24 value);
@@ -129,6 +160,10 @@ interface IPerpdexExchange {
         );
 
     function removeLiquidity(RemoveLiquidityParams calldata params) external returns (uint256 base, uint256 quote);
+
+    function createLimitOrder(CreateLimitOrderParams calldata params) external returns (uint40 orderId);
+
+    function cancelLimitOrder(CancelLimitOrderParams calldata params) external;
 
     function trade(TradeParams calldata params) external returns (uint256 oppositeAmount);
 

@@ -16,6 +16,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         zksync2_testnet: "DebugPriceFeedETHUSD",
         arbitrum_rinkeby: "ChainlinkPriceFeedETHUSD",
         optimism_kovan: "ChainlinkPriceFeedETHUSD",
+        hardhat: hre.ethers.constants.AddressZero,
     }[hre.network.name]
 
     const markets = {
@@ -83,7 +84,20 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
                 priceFeedBase: hre.ethers.constants.AddressZero,
             },
         ],
+        hardhat: [
+            {
+                symbol: "USD",
+                priceFeedBase: hre.ethers.constants.AddressZero,
+            },
+        ],
     }[hre.network.name]
+
+    await deploy("OrderBookLibrary", {
+        from: deployer,
+        log: true,
+        autoMine: true,
+    })
+    const orderBookLibrary = await deployments.get("OrderBookLibrary")
 
     const perpdexExchange = await deployments.get("PerpdexExchange")
 
@@ -103,6 +117,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             ],
             log: true,
             autoMine: true,
+            libraries: {
+                OrderBookLibrary: orderBookLibrary.address,
+            },
         })
 
         await execute(
