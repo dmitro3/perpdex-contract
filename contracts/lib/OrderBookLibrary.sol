@@ -46,7 +46,7 @@ library OrderBookLibrary {
         bool isBid,
         uint256 base,
         uint256 priceX96
-    ) internal returns (uint40) {
+    ) public returns (uint40) {
         require(base > 0, "OBL_CO: base is zero");
         require(priceX96 > 0, "OBL_CO: price is zero");
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
@@ -67,7 +67,7 @@ library OrderBookLibrary {
         MarketStructs.OrderBookInfo storage orderBookInfo,
         bool isBid,
         uint40 key
-    ) internal {
+    ) public {
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
         require(isFullyExecuted(info, key) == 0, "already fully executed");
         uint256 slot = getSlot(orderBookInfo);
@@ -84,7 +84,7 @@ library OrderBookLibrary {
         bool isBid,
         uint40 key
     )
-        internal
+        public
         view
         returns (
             uint48 executionId,
@@ -363,7 +363,7 @@ library OrderBookLibrary {
         bool isExactInput,
         uint256 sharePriceBoundX96,
         uint256 baseBalancePerShareX96
-    ) internal view returns (uint256 amount) {
+    ) public view returns (uint256 amount) {
         uint256 priceBoundX96 = PRBMath.mulDiv(sharePriceBoundX96, FixedPoint96.Q96, baseBalancePerShareX96);
         bool isBid = isBaseToQuote;
         bool isBase = isBaseToQuote == isExactInput;
