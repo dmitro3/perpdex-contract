@@ -17,6 +17,23 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     const settlementTokenAddress = hre.ethers.constants.AddressZero // native token
 
+    await deploy("AccountLibrary", {
+        from: deployer,
+        log: true,
+        autoMine: true,
+    })
+    const accountLibrary = await deployments.get("AccountLibrary")
+
+    await deploy("MakerOrderBookLibrary", {
+        from: deployer,
+        log: true,
+        autoMine: true,
+        libraries: {
+            AccountLibrary: accountLibrary.address,
+        },
+    })
+    const makerOrderBookLibrary = await deployments.get("MakerOrderBookLibrary")
+
     try {
         await deploy("PerpdexExchange", {
             contract: "DebugPerpdexExchange",
@@ -24,6 +41,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             args: [settlementTokenAddress],
             log: true,
             autoMine: true,
+            libraries: {
+                AccountLibrary: accountLibrary.address,
+                MakerOrderBookLibrary: makerOrderBookLibrary.address,
+            },
         })
     } catch (err) {
         console.log(err.message)
