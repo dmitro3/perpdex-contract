@@ -21,6 +21,12 @@ npx hardhat deploy --network rinkeby
 npx hardhat etherscan-verify --network rinkeby --force-license --license GPL-3.0
 ```
 
+zksync 2 testnet verification
+
+1. get flattened code by ```npx hardhat flatten```
+2. verify on https://zksync2-testnet.zkscan.io/
+3. (currently verification is not working. see zksync discord)
+
 ## Local Development
 
 You need Node.js 16+ to build. Use [nvm](https://github.com/nvm-sh/nvm) to install it.
