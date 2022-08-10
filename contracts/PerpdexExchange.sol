@@ -283,6 +283,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkMarketAllowed(params.market)
     {
         address trader = orderIdToTrader[params.market][params.isBid][params.orderId];
+        require(trader != address(0), "PE_CLO: order not exist");
         _settleLimitOrders(trader);
 
         bool isLiquidation =
@@ -298,10 +299,16 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
                 })
             );
 
-        emit LimitOrderCanceled(trader, params.market, isLiquidation ? _msgSender() : address(0), params.orderId);
+        emit LimitOrderCanceled(
+            trader,
+            params.market,
+            isLiquidation ? _msgSender() : address(0),
+            params.isBid,
+            params.orderId
+        );
     }
 
-    function _settleLimitOrders(address trader) private {
+    function _settleLimitOrders(address trader) internal {
         MakerOrderBookLibrary.settleLimitOrdersAll(accountInfos[trader], maxMarketsPerAccount);
     }
 
@@ -362,6 +369,14 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
 
     function getAccountMarkets(address trader) external view returns (address[] memory) {
         return accountInfos[trader].markets;
+    }
+
+    function getLimitOrderIds(
+        address trader,
+        address market,
+        bool isBid
+    ) external view returns (uint40[] memory) {
+        return MakerOrderBookLibrary.getLimitOrderIds(accountInfos[trader], market, isBid);
     }
 
     // dry run

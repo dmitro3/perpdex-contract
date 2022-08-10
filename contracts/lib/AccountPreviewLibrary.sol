@@ -89,12 +89,18 @@ library AccountPreviewLibrary {
                 false,
                 ask
             );
+            if (executionIdAsk == 0) {
+                ask = 0;
+            }
         }
         if (bid != 0) {
             (executionIdBid, executedBaseBid, executedQuoteBid) = IPerpdexMarketMinimum(market).getLimitOrderExecution(
                 true,
                 bid
             );
+            if (executionIdBid == 0) {
+                bid = 0;
+            }
         }
 
         // Combine the ask and bid and process from the one with the smallest executionId.

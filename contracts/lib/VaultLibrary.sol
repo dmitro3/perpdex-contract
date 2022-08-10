@@ -31,7 +31,7 @@ library VaultLibrary {
         uint24 imRatio;
     }
 
-    function deposit(PerpdexStructs.AccountInfo storage accountInfo, DepositParams memory params) internal {
+    function deposit(PerpdexStructs.AccountInfo storage accountInfo, DepositParams memory params) external {
         require(params.amount > 0, "VL_D: zero amount");
         _transferTokenIn(params.settlementToken, params.from, params.amount);
         uint256 collateralAmount =
@@ -41,12 +41,12 @@ library VaultLibrary {
         );
     }
 
-    function depositEth(PerpdexStructs.AccountInfo storage accountInfo, uint256 amount) internal {
+    function depositEth(PerpdexStructs.AccountInfo storage accountInfo, uint256 amount) external {
         require(amount > 0, "VL_DE: zero amount");
         accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(amount.toInt256());
     }
 
-    function withdraw(PerpdexStructs.AccountInfo storage accountInfo, WithdrawParams memory params) internal {
+    function withdraw(PerpdexStructs.AccountInfo storage accountInfo, WithdrawParams memory params) external {
         require(params.amount > 0, "VL_W: zero amount");
 
         uint256 collateralAmount =
@@ -70,7 +70,7 @@ library VaultLibrary {
         PerpdexStructs.AccountInfo storage accountInfo,
         PerpdexStructs.ProtocolInfo storage protocolInfo,
         uint256 amount
-    ) internal {
+    ) external {
         accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(amount.toInt256());
         protocolInfo.protocolFee = protocolInfo.protocolFee.sub(amount);
     }

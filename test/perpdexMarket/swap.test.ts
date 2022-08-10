@@ -101,7 +101,7 @@ describe("PerpdexMarket swap", () => {
                 )
                 await res.to
                     .emit(market, "Swapped")
-                    .withArgs(test.isBaseToQuote, test.isExactInput, test.amount, test.oppositeAmount)
+                    .withArgs(test.isBaseToQuote, test.isExactInput, test.amount, test.oppositeAmount, 0, 0, 0, 0)
                 const poolInfo = await market.poolInfo()
                 expect(poolInfo.base).to.eq(test.base)
                 expect(poolInfo.quote).to.eq(test.quote)
@@ -162,7 +162,7 @@ describe("PerpdexMarket swap", () => {
             it(test.title, async () => {
                 await expect(market.connect(exchange).swap(test.isBaseToQuote, test.isExactInput, test.amount, false))
                     .to.emit(market, "Swapped")
-                    .withArgs(test.isBaseToQuote, test.isExactInput, test.amount, test.oppositeAmount)
+                    .withArgs(test.isBaseToQuote, test.isExactInput, test.amount, test.oppositeAmount, 0, 0, 0, 0)
                     .to.emit(market, "FundingPaid")
                 const poolInfo = await market.poolInfo()
                 expect(poolInfo.base).to.eq(test.base)

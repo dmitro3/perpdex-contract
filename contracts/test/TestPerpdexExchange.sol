@@ -44,4 +44,8 @@ contract TestPerpdexExchange is PerpdexExchange {
     function setIsMarketAllowedForce(address market, bool value) external {
         isMarketAllowed[market] = value;
     }
+
+    function settleLimitOrders(address trader) external {
+        _settleLimitOrders(trader);
+    }
 }

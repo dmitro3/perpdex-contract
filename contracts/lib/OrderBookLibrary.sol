@@ -29,6 +29,7 @@ library OrderBookLibrary {
         uint256 basePartial;
         uint256 quotePartial;
         uint40 partialKey;
+        uint40 fullLastKey;
     }
 
     struct PreviewSwapResponse {
@@ -79,6 +80,16 @@ library OrderBookLibrary {
         delete info.orderInfos[key];
     }
 
+    function getOrderInfo(
+        MarketStructs.OrderBookInfo storage orderBookInfo,
+        bool isBid,
+        uint40 key
+    ) public view returns (uint256 base, uint256 priceX96) {
+        MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
+        base = info.orderInfos[key].base;
+        priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
+    }
+
     function getOrderExecution(
         MarketStructs.OrderBookInfo storage orderBookInfo,
         bool isBid,
@@ -106,7 +117,6 @@ library OrderBookLibrary {
     }
 
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
-        require(info.tree.exists(key), "OBL_IE: not exist");
         while (key != 0 && key != info.tree.root) {
             if (info.orderInfos[key].executionId != 0) {
                 return info.orderInfos[key].executionId;
@@ -234,6 +244,7 @@ library OrderBookLibrary {
             }
 
             swapResponse.oppositeAmount += isBase ? response.quoteFull : response.baseFull;
+            swapResponse.fullLastKey = response.fullLastKey;
         } else {
             require(response.baseFull == 0, "never occur");
             require(response.quoteFull == 0, "never occur");

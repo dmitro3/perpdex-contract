@@ -23,6 +23,7 @@ export interface PerpdexExchangeFixture {
     priceFeeds: MockContract[]
     accountLibrary: AccountLibrary
     makerOrderBookLibrary: MakerOrderBookLibrary
+    vaultLibrary: any
 }
 
 interface Params {
@@ -53,11 +54,18 @@ export function createPerpdexExchangeFixture(
             },
         })
         const makerOrderBookLibrary = await makerOrderBookLibraryFactory.deploy()
+        const vaultLibraryFactory = await ethers.getContractFactory("VaultLibrary", {
+            libraries: {
+                AccountLibrary: accountLibrary.address,
+            },
+        })
+        const vaultLibrary = await vaultLibraryFactory.deploy()
 
         const perpdexExchangeFactory = await ethers.getContractFactory("TestPerpdexExchange", {
             libraries: {
                 AccountLibrary: accountLibrary.address,
                 MakerOrderBookLibrary: makerOrderBookLibrary.address,
+                VaultLibrary: vaultLibrary.address,
             },
         })
         const perpdexExchange = (await perpdexExchangeFactory.deploy(settlementToken)) as TestPerpdexExchange
@@ -119,6 +127,7 @@ export function createPerpdexExchangeFixture(
             priceFeeds,
             accountLibrary,
             makerOrderBookLibrary,
+            vaultLibrary,
         }
     }
 }

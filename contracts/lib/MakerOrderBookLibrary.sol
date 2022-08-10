@@ -131,7 +131,7 @@ library MakerOrderBookLibrary {
 
     function subtreeRemoved(uint40 key, uint256 slot) private pure {}
 
-    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) public {
+    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) external {
         address[] storage markets = accountInfo.markets;
         uint256 i = markets.length;
         while (i > 0) {
@@ -170,6 +170,27 @@ library MakerOrderBookLibrary {
                 0,
                 maxMarketsPerAccount
             );
+        }
+    }
+
+    function getLimitOrderIds(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        bool isBid
+    ) external view returns (uint40[] memory result) {
+        PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
+        RBTreeLibrary.Tree storage tree = isBid ? limitOrderInfo.bid : limitOrderInfo.ask;
+        uint40[100] memory orderIds;
+        uint256 orderCount;
+        uint40 key = tree.first();
+        while (key != 0) {
+            orderIds[orderCount] = key;
+            ++orderCount;
+            key = tree.next(key);
+        }
+        result = new uint40[](orderCount);
+        for (uint256 i = 0; i < orderCount; ++i) {
+            result[i] = orderIds[i];
         }
     }
 
