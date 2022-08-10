@@ -135,6 +135,7 @@ interface IPerpdexExchange {
         address indexed trader,
         address indexed market,
         address indexed liquidator,
+        bool isBid,
         uint256 orderId
     );
 

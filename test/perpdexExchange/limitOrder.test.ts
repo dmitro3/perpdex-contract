@@ -26,22 +26,39 @@ describe("PerpdexExchange limitOrder", () => {
         alice = fixture.alice
         priceFeed = fixture.priceFeed
 
+        await exchange.connect(owner).setImRatio(10e4)
+        await exchange.connect(owner).setMmRatio(5e4)
+        await exchange.connect(owner).setLiquidationRewardConfig({
+            rewardRatio: 25e4,
+            smoothEmaTime: 1,
+        })
+
         await market.connect(owner).setPoolFeeRatio(0)
         await market.connect(owner).setFundingMaxPremiumRatio(0)
+        await exchange.connect(owner).setIsMarketAllowed(market.address, true)
         await market.connect(owner).setPriceLimitConfig({
-            normalOrderRatio: 1e5,
-            liquidationRatio: 2e5,
-            emaNormalOrderRatio: 5e5,
-            emaLiquidationRatio: 5e5,
-            emaSec: 0,
+            normalOrderRatio: 5e4,
+            liquidationRatio: 10e4,
+            emaNormalOrderRatio: 5e4,
+            emaLiquidationRatio: 10e4,
+            emaSec: 300,
         })
-        await market.setPoolInfo({
+
+        await exchange.setAccountInfo(
+            owner.address,
+            {
+                collateralBalance: 100000,
+            },
+            [],
+        )
+
+        await exchange.connect(owner).addLiquidity({
+            market: market.address,
             base: 10000,
             quote: 10000,
-            totalLiquidity: 10000,
-            cumBasePerLiquidityX96: 0,
-            cumQuotePerLiquidityX96: 0,
-            baseBalancePerShareX96: Q96,
+            minBase: 0,
+            minQuote: 0,
+            deadline: deadline,
         })
     })
 
@@ -56,7 +73,7 @@ describe("PerpdexExchange limitOrder", () => {
                     deadline: deadline,
                 }),
             )
-                .to.emit(market, "LimitOrderCreated")
+                .to.emit(exchange, "LimitOrderCreated")
                 .withArgs(alice.address, market.address, true, 1, Q96, 1)
 
             await expect(
@@ -68,7 +85,7 @@ describe("PerpdexExchange limitOrder", () => {
                     deadline: deadline,
                 }),
             )
-                .to.emit(market, "LimitOrderCreated")
+                .to.emit(exchange, "LimitOrderCreated")
                 .withArgs(alice.address, market.address, false, 1, Q96, 1)
         })
 
@@ -82,7 +99,7 @@ describe("PerpdexExchange limitOrder", () => {
                     deadline: deadline,
                 }),
             )
-                .to.emit(market, "LimitOrderCreated")
+                .to.emit(exchange, "LimitOrderCreated")
                 .withArgs(alice.address, market.address, true, 1, Q96, 1)
             await expect(
                 exchange.connect(alice).createLimitOrder({
@@ -93,8 +110,8 @@ describe("PerpdexExchange limitOrder", () => {
                     deadline: deadline,
                 }),
             )
-                .to.emit(market, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, true, 1, Q96, 1)
+                .to.emit(exchange, "LimitOrderCreated")
+                .withArgs(alice.address, market.address, true, 1, Q96, 2)
 
             await expect(
                 exchange.connect(alice).createLimitOrder({
@@ -105,43 +122,78 @@ describe("PerpdexExchange limitOrder", () => {
                     deadline: deadline,
                 }),
             )
-                .to.emit(market, "LimitOrderCreated")
+                .to.emit(exchange, "LimitOrderCreated")
                 .withArgs(alice.address, market.address, false, 1, Q96, 1)
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    base: 1,
+                    priceX96: Q96,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(exchange, "LimitOrderCreated")
+                .withArgs(alice.address, market.address, false, 1, Q96, 2)
         })
     })
 
     describe("cancelLimitOrder", () => {
         it("normal", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
-                .to.emit(market, "LimitOrderCreated")
-                .withArgs(true, 1, Q96, 1)
-            await expect(market.connect(exchange).cancelLimitOrder(true, 1))
-                .to.emit(market, "LimitOrderCanceled")
-                .withArgs(true, 1)
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    base: 1,
+                    priceX96: Q96,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(exchange, "LimitOrderCreated")
+                .withArgs(alice.address, market.address, true, 1, Q96, 1)
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    orderId: 1,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(exchange, "LimitOrderCanceled")
+                .withArgs(alice.address, market.address, hre.ethers.constants.AddressZero, true, 1)
+
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    base: 1,
+                    priceX96: Q96,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(exchange, "LimitOrderCreated")
+                .withArgs(alice.address, market.address, false, 1, Q96, 1)
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    orderId: 1,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(exchange, "LimitOrderCanceled")
+                .withArgs(alice.address, market.address, hre.ethers.constants.AddressZero, false, 1)
         })
 
         it("empty", async () => {
-            await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("OBL_IE: not exist")
-        })
-
-        it("different side ask", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
-                .to.emit(market, "LimitOrderCreated")
-                .withArgs(true, 1, Q96, 1)
-            await expect(market.connect(exchange).cancelLimitOrder(false, 1)).to.revertedWith("OBL_IE: not exist")
-        })
-
-        it("different side bid", async () => {
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
-                .to.emit(market, "LimitOrderCreated")
-                .withArgs(false, 1, Q96, 1)
-            await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("OBL_IE: not exist")
-        })
-
-        it("caller is not exchange error", async () => {
-            await expect(market.connect(alice).cancelLimitOrder(true, 1)).to.be.revertedWith(
-                "PM_OE: caller is not exchange",
-            )
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    orderId: 1,
+                    deadline: deadline,
+                }),
+            ).to.revertedWith("PE_CLO: order not exist")
         })
     })
 })

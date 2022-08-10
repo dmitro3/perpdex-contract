@@ -283,6 +283,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         checkMarketAllowed(params.market)
     {
         address trader = orderIdToTrader[params.market][params.isBid][params.orderId];
+        require(trader != address(0), "PE_CLO: order not exist");
         _settleLimitOrders(trader);
 
         bool isLiquidation =
@@ -298,7 +299,13 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
                 })
             );
 
-        emit LimitOrderCanceled(trader, params.market, isLiquidation ? _msgSender() : address(0), params.orderId);
+        emit LimitOrderCanceled(
+            trader,
+            params.market,
+            isLiquidation ? _msgSender() : address(0),
+            params.isBid,
+            params.orderId
+        );
     }
 
     function _settleLimitOrders(address trader) private {
