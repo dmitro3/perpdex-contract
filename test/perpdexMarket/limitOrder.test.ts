@@ -106,21 +106,21 @@ describe("PerpdexMarket limitOrder", () => {
         })
 
         it("empty", async () => {
-            await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("OBL_IE: not exist")
+            await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("RBTL_R: key not exist")
         })
 
         it("different side ask", async () => {
             await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(true, 1, Q96, 1)
-            await expect(market.connect(exchange).cancelLimitOrder(false, 1)).to.revertedWith("OBL_IE: not exist")
+            await expect(market.connect(exchange).cancelLimitOrder(false, 1)).to.revertedWith("RBTL_R: key not exist")
         })
 
         it("different side bid", async () => {
             await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(false, 1, Q96, 1)
-            await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("OBL_IE: not exist")
+            await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("RBTL_R: key not exist")
         })
 
         it("caller is not exchange error", async () => {

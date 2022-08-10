@@ -117,7 +117,6 @@ library OrderBookLibrary {
     }
 
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
-        require(info.tree.exists(key), "OBL_IE: not exist");
         while (key != 0 && key != info.tree.root) {
             if (info.orderInfos[key].executionId != 0) {
                 return info.orderInfos[key].executionId;
@@ -245,6 +244,7 @@ library OrderBookLibrary {
             }
 
             swapResponse.oppositeAmount += isBase ? response.quoteFull : response.baseFull;
+            swapResponse.fullLastKey = response.fullLastKey;
         } else {
             require(response.baseFull == 0, "never occur");
             require(response.quoteFull == 0, "never occur");

@@ -112,6 +112,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
             address partialTrader =
                 orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialKey];
             _settleLimitOrders(partialTrader);
+
             TakerLibrary.addToTakerBalance(
                 accountInfos[partialTrader],
                 params.market,
@@ -308,7 +309,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         );
     }
 
-    function _settleLimitOrders(address trader) private {
+    function _settleLimitOrders(address trader) internal {
         MakerOrderBookLibrary.settleLimitOrdersAll(accountInfos[trader], maxMarketsPerAccount);
     }
 

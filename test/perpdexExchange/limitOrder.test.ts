@@ -205,4 +205,130 @@ describe("PerpdexExchange limitOrder", () => {
             ).to.revertedWith("PE_CLO: order not exist")
         })
     })
+
+    describe("lazy execution", () => {
+        it("ask", async () => {
+            await exchange.connect(alice).createLimitOrder({
+                market: market.address,
+                isBid: false,
+                base: 1,
+                priceX96: Q96,
+                deadline: deadline,
+            })
+
+            await expect(
+                exchange.connect(owner).trade({
+                    trader: owner.address,
+                    market: market.address,
+                    isBaseToQuote: false,
+                    isExactInput: false,
+                    amount: 1,
+                    oppositeAmountBound: 1,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(market, "Swapped")
+                .withArgs(false, false, 1, 1, 1, 0, 0, 0)
+
+            expect(await market.getLimitOrderExecution(false, 1)).to.deep.eq([1, 1, 1])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([1])
+            expect(await exchange.getPositionShare(alice.address, market.address)).to.deep.eq(-1)
+
+            await exchange.settleLimitOrders(alice.address)
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([])
+            expect(await exchange.getPositionShare(alice.address, market.address)).to.deep.eq(-1)
+        })
+
+        it("bid", async () => {
+            await exchange.connect(alice).createLimitOrder({
+                market: market.address,
+                isBid: true,
+                base: 1,
+                priceX96: Q96,
+                deadline: deadline,
+            })
+
+            await expect(
+                exchange.connect(owner).trade({
+                    trader: owner.address,
+                    market: market.address,
+                    isBaseToQuote: true,
+                    isExactInput: true,
+                    amount: 1,
+                    oppositeAmountBound: 1,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(market, "Swapped")
+                .withArgs(true, true, 1, 1, 1, 0, 0, 0)
+
+            expect(await market.getLimitOrderExecution(true, 1)).to.deep.eq([1, 1, 1])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([1])
+            expect(await exchange.getPositionShare(alice.address, market.address)).to.deep.eq(1)
+
+            await exchange.settleLimitOrders(alice.address)
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([])
+            expect(await exchange.getPositionShare(alice.address, market.address)).to.deep.eq(1)
+        })
+    })
+
+    describe("partial execution", () => {
+        it("ask", async () => {
+            await exchange.connect(alice).createLimitOrder({
+                market: market.address,
+                isBid: false,
+                base: 2,
+                priceX96: Q96,
+                deadline: deadline,
+            })
+
+            await expect(
+                exchange.connect(owner).trade({
+                    trader: owner.address,
+                    market: market.address,
+                    isBaseToQuote: false,
+                    isExactInput: false,
+                    amount: 1,
+                    oppositeAmountBound: 1,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(market, "Swapped")
+                .withArgs(false, false, 1, 1, 0, 1, 1, 1)
+
+            expect(await market.getLimitOrderInfo(false, 1)).to.deep.eq([1, Q96])
+            expect(await market.getLimitOrderExecution(false, 1)).to.deep.eq([0, 0, 0])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([1])
+            expect(await exchange.getPositionShare(alice.address, market.address)).to.deep.eq(-1)
+        })
+
+        it("bid", async () => {
+            await exchange.connect(alice).createLimitOrder({
+                market: market.address,
+                isBid: true,
+                base: 2,
+                priceX96: Q96,
+                deadline: deadline,
+            })
+
+            await expect(
+                exchange.connect(owner).trade({
+                    trader: owner.address,
+                    market: market.address,
+                    isBaseToQuote: true,
+                    isExactInput: true,
+                    amount: 1,
+                    oppositeAmountBound: 1,
+                    deadline: deadline,
+                }),
+            )
+                .to.emit(market, "Swapped")
+                .withArgs(true, true, 1, 1, 0, 1, 1, 1)
+
+            expect(await market.getLimitOrderInfo(true, 1)).to.deep.eq([1, Q96])
+            expect(await market.getLimitOrderExecution(true, 1)).to.deep.eq([0, 0, 0])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([1])
+            expect(await exchange.getPositionShare(alice.address, market.address)).to.deep.eq(1)
+        })
+    })
 })
