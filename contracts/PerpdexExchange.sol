@@ -112,7 +112,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
             address partialTrader =
                 orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialKey];
             _settleLimitOrders(partialTrader);
-
             TakerLibrary.addToTakerBalance(
                 accountInfos[partialTrader],
                 params.market,

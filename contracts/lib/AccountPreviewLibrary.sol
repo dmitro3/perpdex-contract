@@ -107,7 +107,7 @@ library AccountPreviewLibrary {
         // Ask and bid are already sorted and can be processed like merge sort.
         Execution[100] memory executions2; // TODO: max order count
         uint256 executionCount;
-        while ((ask != 0) || bid != 0) {
+        while (ask != 0 || bid != 0) {
             if (ask != 0 && (bid == 0 || executionIdAsk < executionIdBid)) {
                 executions2[executionCount] = Execution({
                     executedBase: executedBaseAsk.neg256(),
