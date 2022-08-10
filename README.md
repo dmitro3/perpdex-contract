@@ -9,6 +9,24 @@ Please check out:
 - [PerpDEX website](https://perpdex.com/)
 <!-- - [PerpDEX docs](https://docs.perpdex.com/) -->
 
+## feature/zksync branch
+
+feature/zksync is the branch to manage changes specific to zksync
+
+background
+
+- Basically developed in develop branch.
+- Libraries with external function are used to avoid size limitation of contract
+- zksync currently has trouble handling libraries with external functions, although it is not impossible.
+- It seems that the size of the contract is within the limit without using library with external function in zksync.
+- So we decided not to use library with external function in zksync.
+- the code need to be modified, so it is managed in the feature/zksync branch.
+
+operations
+
+- rebase or merge the latest develop regularly
+- push zksync deployments to develop as well
+
 ## deploy
 
 ```bash
