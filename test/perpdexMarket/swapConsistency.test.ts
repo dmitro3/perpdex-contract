@@ -83,7 +83,7 @@ describe("PerpdexMarket swap consistency", () => {
                                 market.connect(exchange).swap(isBaseToQuote, isExactInput, amount, isLiquidation),
                             )
                                 .to.emit(market, "Swapped")
-                                .withArgs(isBaseToQuote, isExactInput, amount, previewOppositeAmount)
+                                .withArgs(isBaseToQuote, isExactInput, amount, previewOppositeAmount, 0, 0, 0, 0)
 
                             const poolInfo = await market.poolInfo()
                             if (isExactInput) {

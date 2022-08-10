@@ -29,6 +29,7 @@ library OrderBookLibrary {
         uint256 basePartial;
         uint256 quotePartial;
         uint40 partialKey;
+        uint40 fullLastKey;
     }
 
     struct PreviewSwapResponse {

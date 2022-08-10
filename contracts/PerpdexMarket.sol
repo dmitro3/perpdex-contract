@@ -124,7 +124,16 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
 
         PriceLimitLibrary.update(priceLimitInfo, updated);
 
-        emit Swapped(isBaseToQuote, isExactInput, amount, response.oppositeAmount);
+        emit Swapped(
+            isBaseToQuote,
+            isExactInput,
+            amount,
+            response.oppositeAmount,
+            swapResponse.fullLastKey,
+            response.partialKey,
+            response.basePartial,
+            response.quotePartial
+        );
 
         _processFunding();
     }
