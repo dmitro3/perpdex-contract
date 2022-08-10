@@ -34,6 +34,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     })
     const makerOrderBookLibrary = await deployments.get("MakerOrderBookLibrary")
 
+    await deploy("VaultLibrary", {
+        from: deployer,
+        log: true,
+        autoMine: true,
+        libraries: {
+            AccountLibrary: accountLibrary.address,
+        },
+    })
+    const vaultLibrary = await deployments.get("VaultLibrary")
+
     try {
         await deploy("PerpdexExchange", {
             contract: "DebugPerpdexExchange",
@@ -44,6 +54,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             libraries: {
                 AccountLibrary: accountLibrary.address,
                 MakerOrderBookLibrary: makerOrderBookLibrary.address,
+                VaultLibrary: vaultLibrary.address,
             },
         })
     } catch (err) {
