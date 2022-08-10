@@ -447,6 +447,10 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         return AccountLibrary.hasEnoughInitialMargin(accountInfos[trader], imRatio);
     }
 
+    function isLiquidationFree(address trader) external view returns (bool) {
+        return AccountLibrary.isLiquidationFree(accountInfos[trader]);
+    }
+
     // for avoiding stack too deep error
     function _doTrade(TradeParams calldata params) private returns (TakerLibrary.TradeResponse memory) {
         return

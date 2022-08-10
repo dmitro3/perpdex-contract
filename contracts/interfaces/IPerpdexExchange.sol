@@ -238,4 +238,6 @@ interface IPerpdexExchange {
     function hasEnoughMaintenanceMargin(address trader) external view returns (bool);
 
     function hasEnoughInitialMargin(address trader) external view returns (bool);
+
+    function isLiquidationFree(address trader) external view returns (bool);
 }

@@ -52,6 +52,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "empty pool, no position",
@@ -80,6 +81,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "empty pool, negative collateral",
@@ -108,6 +110,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: false,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "zero",
@@ -136,6 +139,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "no position",
@@ -164,6 +168,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "negative collateral",
@@ -192,6 +197,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: false,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "long",
@@ -220,6 +226,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "short",
@@ -248,6 +255,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "long profit",
@@ -276,6 +284,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "long profit",
@@ -304,6 +313,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "long loss",
@@ -332,6 +342,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: false,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "short profit",
@@ -360,6 +371,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "short loss",
@@ -388,6 +400,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: false,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "long negative",
@@ -416,6 +429,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: false,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "maker",
@@ -444,6 +458,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "maker long",
@@ -472,6 +487,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 75,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "maker long rebase",
@@ -500,6 +516,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 75,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "maker short",
@@ -528,6 +545,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 200,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "maker + taker",
@@ -556,6 +574,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "maker not enough im",
@@ -584,6 +603,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "maker deleverage",
@@ -616,6 +636,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 300,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "profit and no collateral but liquidation free",
@@ -644,6 +665,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "profit and no collateral and not liquidation free",
@@ -672,6 +694,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 100,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "rounding",
@@ -700,6 +723,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 33,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "rounding 2",
@@ -728,6 +752,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 33,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "liquidation free",
@@ -756,6 +781,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "liquidation free 2",
@@ -784,6 +810,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 1,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "liquidation free maker",
@@ -812,6 +839,7 @@ describe("PerpdexExchange getters", () => {
                 openPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
         ].forEach(test => {
             it(test.title, async () => {
@@ -842,6 +870,7 @@ describe("PerpdexExchange getters", () => {
                 expect(await exchange.getTotalOpenPositionNotional(alice.address)).to.eq(test.openPositionNotional)
                 expect(await exchange.hasEnoughMaintenanceMargin(alice.address)).to.eq(test.hasEnoughMaintenanceMargin)
                 expect(await exchange.hasEnoughInitialMargin(alice.address)).to.eq(test.hasEnoughInitialMargin)
+                expect(await exchange.isLiquidationFree(alice.address)).to.eq(test.isLiquidationFree)
             })
         })
     })

@@ -79,6 +79,7 @@ describe("PerpdexExchange getters", () => {
                 totalOpenPositionNotional: 0,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "long profit",
@@ -132,6 +133,7 @@ describe("PerpdexExchange getters", () => {
                 totalOpenPositionNotional: 220,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "long profit and short loss",
@@ -185,6 +187,7 @@ describe("PerpdexExchange getters", () => {
                 totalOpenPositionNotional: 220,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: false,
             },
             {
                 title: "not enough im and liquidation free",
@@ -238,6 +241,7 @@ describe("PerpdexExchange getters", () => {
                 totalOpenPositionNotional: 220,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "not enough im and not liquidation free negative base",
@@ -291,6 +295,7 @@ describe("PerpdexExchange getters", () => {
                 totalOpenPositionNotional: 104,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
             {
                 title: "not enough im and not liquidation free negative quote",
@@ -344,6 +349,7 @@ describe("PerpdexExchange getters", () => {
                 totalOpenPositionNotional: 220,
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: false,
+                isLiquidationFree: false,
             },
         ].forEach(test => {
             it(test.title, async () => {
@@ -384,6 +390,7 @@ describe("PerpdexExchange getters", () => {
                 expect(await exchange.getTotalOpenPositionNotional(alice.address)).to.eq(test.totalOpenPositionNotional)
                 expect(await exchange.hasEnoughMaintenanceMargin(alice.address)).to.eq(test.hasEnoughMaintenanceMargin)
                 expect(await exchange.hasEnoughInitialMargin(alice.address)).to.eq(test.hasEnoughInitialMargin)
+                expect(await exchange.isLiquidationFree(alice.address)).to.eq(test.isLiquidationFree)
             })
         })
     })
