@@ -347,6 +347,10 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
         return PoolLibrary.getMarkPriceX96(poolInfo.base, poolInfo.quote, poolInfo.baseBalancePerShareX96);
     }
 
+    function getLimitOrderInfo(bool isBid, uint40 orderId) external view returns (uint256 base, uint256 priceX96) {
+        return OrderBookLibrary.getOrderInfo(orderBookInfo, isBid, orderId);
+    }
+
     function getLimitOrderExecution(bool isBid, uint40 orderId)
         external
         view

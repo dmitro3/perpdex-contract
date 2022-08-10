@@ -79,6 +79,16 @@ library OrderBookLibrary {
         delete info.orderInfos[key];
     }
 
+    function getOrderInfo(
+        MarketStructs.OrderBookInfo storage orderBookInfo,
+        bool isBid,
+        uint40 key
+    ) public view returns (uint256 base, uint256 priceX96) {
+        MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
+        base = info.orderInfos[key].base;
+        priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
+    }
+
     function getOrderExecution(
         MarketStructs.OrderBookInfo storage orderBookInfo,
         bool isBid,

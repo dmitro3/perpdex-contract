@@ -371,6 +371,14 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
         return accountInfos[trader].markets;
     }
 
+    function getLimitOrderIds(
+        address trader,
+        address market,
+        bool isBid
+    ) external view returns (uint40[] memory) {
+        return MakerOrderBookLibrary.getLimitOrderIds(accountInfos[trader], market, isBid);
+    }
+
     // dry run
 
     function previewTrade(PreviewTradeParams calldata params)

@@ -87,6 +87,9 @@ describe("PerpdexExchange limitOrder", () => {
             )
                 .to.emit(exchange, "LimitOrderCreated")
                 .withArgs(alice.address, market.address, false, 1, Q96, 1)
+
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([1])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([1])
         })
 
         it("multiple", async () => {
@@ -135,6 +138,9 @@ describe("PerpdexExchange limitOrder", () => {
             )
                 .to.emit(exchange, "LimitOrderCreated")
                 .withArgs(alice.address, market.address, false, 1, Q96, 2)
+
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([1, 2])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([1, 2])
         })
     })
 
@@ -183,6 +189,9 @@ describe("PerpdexExchange limitOrder", () => {
             )
                 .to.emit(exchange, "LimitOrderCanceled")
                 .withArgs(alice.address, market.address, hre.ethers.constants.AddressZero, false, 1)
+
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([])
         })
 
         it("empty", async () => {

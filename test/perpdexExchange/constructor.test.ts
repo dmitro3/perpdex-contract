@@ -19,6 +19,7 @@ describe("PerpdexExchange constructor", () => {
             libraries: {
                 AccountLibrary: fixture.accountLibrary.address,
                 MakerOrderBookLibrary: fixture.makerOrderBookLibrary.address,
+                VaultLibrary: fixture.vaultLibrary.address,
             },
         })
     })
