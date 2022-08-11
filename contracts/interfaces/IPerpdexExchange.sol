@@ -96,6 +96,15 @@ interface IPerpdexExchange {
         uint256 sharePriceAfterX96
     );
 
+    event PartiallyExecuted(
+        address indexed maker,
+        address indexed market,
+        bool isAsk,
+        uint256 basePartial,
+        uint256 quotePartial,
+        int256 partialRealizedPnL
+    );
+
     event PositionLiquidated(
         address indexed trader,
         address indexed market,
