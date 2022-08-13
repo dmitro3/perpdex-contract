@@ -1,10 +1,10 @@
 import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../../perpdexExchange/fixtures"
-import { BigNumber, Wallet } from "ethers"
+import { BigNumber, BigNumberish, Wallet } from "ethers"
 import { MockContract } from "ethereum-waffle"
 
-describe("gas benchmark amm only", () => {
+describe("gas benchmark limit order", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
     let fixture
 
@@ -17,6 +17,13 @@ describe("gas benchmark amm only", () => {
 
     const Q96 = BigNumber.from(2).pow(96)
     const deadline = Q96
+
+    const multicallChunk = async (contract, calls) => {
+        const step = 10
+        for (let i = 0; i < calls.length; i += step) {
+            await contract.multicall(calls.slice(i, i + step))
+        }
+    }
 
     beforeEach(async () => {
         fixture = await loadFixture(
@@ -38,9 +45,6 @@ describe("gas benchmark amm only", () => {
             smoothEmaTime: 1,
         })
 
-        await exchange.setInsuranceFundInfo({ balance: 10000, liquidationRewardBalance: 0 })
-        await exchange.setProtocolInfo({ protocolFee: 10000 })
-
         await exchange.setAccountInfo(
             owner.address,
             {
@@ -51,6 +55,14 @@ describe("gas benchmark amm only", () => {
 
         await exchange.setAccountInfo(
             alice.address,
+            {
+                collateralBalance: 100000,
+            },
+            [],
+        )
+
+        await exchange.setAccountInfo(
+            bob.address,
             {
                 collateralBalance: 100000,
             },
@@ -82,8 +94,77 @@ describe("gas benchmark amm only", () => {
         }
     })
 
-    describe("many market", () => {
+    describe("multiple market extreme", () => {
         it("ok", async () => {
+            let calls = []
+            for (let i = 0; i < 50; i++) {
+                const market = markets[15]
+
+                calls.push(
+                    exchange.interface.encodeFunctionData("createLimitOrder", [
+                        {
+                            market: market.address,
+                            isBid: true,
+                            base: 100,
+                            priceX96: Q96,
+                            deadline: deadline,
+                        },
+                    ]),
+                )
+                calls.push(
+                    exchange.interface.encodeFunctionData("createLimitOrder", [
+                        {
+                            market: market.address,
+                            isBid: false,
+                            base: 100,
+                            priceX96: Q96,
+                            deadline: deadline,
+                        },
+                    ]),
+                )
+            }
+            await multicallChunk(exchange.connect(bob), calls)
+
+            calls = []
+            for (let i = 0; i < 16; i++) {
+                const market = markets[i]
+                calls.push(
+                    exchange.interface.encodeFunctionData("createLimitOrder", [
+                        {
+                            market: market.address,
+                            isBid: true,
+                            base: 100,
+                            priceX96: Q96,
+                            deadline: deadline,
+                        },
+                    ]),
+                )
+                calls.push(
+                    exchange.interface.encodeFunctionData("createLimitOrder", [
+                        {
+                            market: market.address,
+                            isBid: false,
+                            base: 100,
+                            priceX96: Q96,
+                            deadline: deadline,
+                        },
+                    ]),
+                )
+                calls.push(
+                    exchange.interface.encodeFunctionData("addLiquidity", [
+                        {
+                            market: market.address,
+                            base: 100,
+                            quote: 100,
+                            minBase: 0,
+                            minQuote: 0,
+                            deadline: deadline,
+                        },
+                    ]),
+                )
+            }
+            await multicallChunk(exchange.connect(alice), calls)
+
             for (let i = 0; i < markets.length; i++) {
                 const market = markets[i]
                 await exchange.connect(alice).trade({
@@ -91,11 +172,12 @@ describe("gas benchmark amm only", () => {
                     market: market.address,
                     isBaseToQuote: false,
                     isExactInput: false,
-                    amount: 100,
-                    oppositeAmountBound: 1000,
+                    amount: i < markets.length - 1 ? 1 : 5000,
+                    oppositeAmountBound: Q96,
                     deadline: deadline,
                 })
             }
+
             for (let i = 0; i < markets.length; i++) {
                 const market = markets[i]
                 await exchange.connect(alice).trade({
@@ -103,7 +185,7 @@ describe("gas benchmark amm only", () => {
                     market: market.address,
                     isBaseToQuote: true,
                     isExactInput: true,
-                    amount: 100,
+                    amount: i < markets.length - 1 ? 1 : 4999,
                     oppositeAmountBound: 0,
                     deadline: deadline,
                 })
