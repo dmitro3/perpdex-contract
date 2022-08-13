@@ -156,7 +156,12 @@ library AccountPreviewLibrary {
     function previewSettleLimitOrders(PerpdexStructs.AccountInfo storage accountInfo, address market)
         internal
         view
-        returns (PerpdexStructs.TakerInfo memory takerInfo, int256 realizedPnl)
+        returns (
+            PerpdexStructs.TakerInfo memory takerInfo,
+            int256 realizedPnl,
+            uint256 totalExecutedBaseAsk,
+            uint256 totalExecutedBaseBid
+        )
     {
         (Execution[] memory executions, , ) = getLimitOrderExecutions(accountInfo, market);
 
@@ -172,6 +177,11 @@ library AccountPreviewLibrary {
                 0
             );
             realizedPnl += realizedPnl2;
+            if (executions[i].executedBase >= 0) {
+                totalExecutedBaseBid += executions[i].executedBase.abs();
+            } else {
+                totalExecutedBaseAsk += executions[i].executedBase.abs();
+            }
         }
     }
 }
