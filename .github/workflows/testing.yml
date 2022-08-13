@@ -11,13 +11,6 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      # fix SSH error: git@github.com: Permission denied (publickey).
-      # copy from https://github.com/actions/setup-node/issues/214#issuecomment-810829250
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
-
       - name: Get npm cache directory
         id: npm-cache
         run: |
@@ -41,17 +34,6 @@ jobs:
 
       - name: Build contract package
         run: npm run build
-
-      - name: Build deps
-        run: |
-          cd deps/perpdex-oracle-contract
-          npm install
-          npm run build
-          cd ../../
-          mkdir -p typechain/perp-oracle
-          cp -r deps/perpdex-oracle-contract/typechain/* typechain/perp-oracle/
-          ls -la typechain
-          ls -la deps/perpdex-oracle-contract/typechain
 
       - name: Run contract tests
         run: npm run test
@@ -122,13 +104,6 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      # fix SSH error: git@github.com: Permission denied (publickey).
-      # copy from https://github.com/actions/setup-node/issues/214#issuecomment-810829250
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
-
       - name: Get npm cache directory
         id: npm-cache
         run: |
@@ -153,17 +128,6 @@ jobs:
       - name: Build contract package
         run: npm run build
 
-      - name: Build deps
-        run: |
-          cd deps/perpdex-oracle-contract
-          npm install
-          npm run build
-          cd ../../
-          mkdir -p typechain/perp-oracle
-          cp -r deps/perpdex-oracle-contract/typechain/* typechain/perp-oracle/
-          ls -la typechain
-          ls -la deps/perpdex-oracle-contract/typechain
-
       - run: npx hardhat deploy
 
   build-zksync:
@@ -173,13 +137,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-
-      # fix SSH error: git@github.com: Permission denied (publickey).
-      # copy from https://github.com/actions/setup-node/issues/214#issuecomment-810829250
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
 
       - name: Get npm cache directory
         id: npm-cache
@@ -215,13 +172,6 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      # fix SSH error: git@github.com: Permission denied (publickey).
-      # copy from https://github.com/actions/setup-node/issues/214#issuecomment-810829250
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
-
       - name: Get npm cache directory
         id: npm-cache
         run: |
@@ -246,17 +196,6 @@ jobs:
       - name: Build contract package
         run: npm run build
 
-      - name: Build deps
-        run: |
-          cd deps/perpdex-oracle-contract
-          npm install
-          npm run build
-          cd ../../
-          mkdir -p typechain/perp-oracle
-          cp -r deps/perpdex-oracle-contract/typechain/* typechain/perp-oracle/
-          ls -la typechain
-          ls -la deps/perpdex-oracle-contract/typechain
-
       - name: Run contract coverage
         run: npm run coverage
         env:
@@ -276,13 +215,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-
-      # fix SSH error: git@github.com: Permission denied (publickey).
-      # copy from https://github.com/actions/setup-node/issues/214#issuecomment-810829250
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
 
       - name: Get npm cache directory
         id: npm-cache
