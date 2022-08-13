@@ -6,6 +6,7 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { IPerpdexExchange } from "./interfaces/IPerpdexExchange.sol";
 import { IPerpdexMarketMinimum } from "./interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./lib/PerpdexStructs.sol";
@@ -16,7 +17,7 @@ import { TakerLibrary } from "./lib/TakerLibrary.sol";
 import { VaultLibrary } from "./lib/VaultLibrary.sol";
 import { PerpMath } from "./lib/PerpMath.sol";
 
-contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable {
+contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multicall {
     using Address for address;
     using PerpMath for int256;
     using PerpMath for uint256;

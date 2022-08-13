@@ -7,6 +7,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuar
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { IPerpdexMarket } from "./interfaces/IPerpdexMarket.sol";
 import { MarketStructs } from "./lib/MarketStructs.sol";
 import { FundingLibrary } from "./lib/FundingLibrary.sol";
@@ -14,7 +15,7 @@ import { PoolLibrary } from "./lib/PoolLibrary.sol";
 import { PriceLimitLibrary } from "./lib/PriceLimitLibrary.sol";
 import { OrderBookLibrary } from "./lib/OrderBookLibrary.sol";
 
-contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable {
+contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     using Address for address;
     using SafeCast for uint256;
     using SafeMath for uint256;
