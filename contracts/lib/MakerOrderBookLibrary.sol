@@ -161,33 +161,34 @@ library MakerOrderBookLibrary {
             uint40 executedLastAskOrderId,
             uint40 executedLastBidOrderId
         ) = AccountPreviewLibrary.getLimitOrderExecutions(accountInfo, market);
+        uint256 executionLength = executions.length;
+        if (executionLength == 0) return;
 
-        uint256 slot = getSlot(limitOrderInfo);
-        if (executedLastAskOrderId != 0) {
-            limitOrderInfo.ask.removeLeft(executedLastAskOrderId, lessThanAsk, aggregate, subtreeRemoved, slot);
-        }
-        if (executedLastBidOrderId != 0) {
-            limitOrderInfo.bid.removeLeft(executedLastBidOrderId, lessThanBid, aggregate, subtreeRemoved, slot);
-        }
-
-        uint256 length = executions.length;
-        accountInfo.limitOrderCount -= length.toUint8();
-        for (uint256 i = 0; i < length; ++i) {
-            int256 executedBase = executions[i].executedBase;
-            if (executions[i].executedBase >= 0) {
-                limitOrderInfo.totalBidBase -= executedBase.abs();
-            } else {
-                limitOrderInfo.totalAskBase -= executedBase.abs();
+        {
+            uint256 slot = getSlot(limitOrderInfo);
+            if (executedLastAskOrderId != 0) {
+                limitOrderInfo.ask.removeLeft(executedLastAskOrderId, lessThanAsk, aggregate, subtreeRemoved, slot);
             }
-            TakerLibrary.addToTakerBalance(
-                accountInfo,
-                market,
-                executions[i].executedBase,
-                executions[i].executedQuote,
-                0,
-                maxMarketsPerAccount
-            );
+            if (executedLastBidOrderId != 0) {
+                limitOrderInfo.bid.removeLeft(executedLastBidOrderId, lessThanBid, aggregate, subtreeRemoved, slot);
+            }
         }
+
+        int256 realizedPnl;
+        uint256 totalExecutedBaseAsk;
+        uint256 totalExecutedBaseBid;
+        (
+            accountInfo.takerInfos[market],
+            realizedPnl,
+            totalExecutedBaseAsk,
+            totalExecutedBaseBid
+        ) = AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market, executions);
+
+        limitOrderInfo.totalAskBase -= totalExecutedBaseAsk;
+        limitOrderInfo.totalBidBase -= totalExecutedBaseBid;
+        accountInfo.limitOrderCount -= executionLength.toUint8();
+        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(realizedPnl);
+        AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);
     }
 
     function processPartialExecution(
@@ -197,7 +198,7 @@ library MakerOrderBookLibrary {
         uint8 maxMarketsPerAccount,
         IPerpdexMarketMinimum.SwapResponse memory rawResponse
     ) external returns (int256 realizedPnl) {
-        settleLimitOrdersAll(accountInfo, maxMarketsPerAccount);
+        settleLimitOrders(accountInfo, market, maxMarketsPerAccount);
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         if (isBaseToQuote) {
             limitOrderInfo.totalBidBase -= rawResponse.basePartial;

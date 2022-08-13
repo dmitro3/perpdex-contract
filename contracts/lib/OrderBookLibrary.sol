@@ -117,7 +117,9 @@ library OrderBookLibrary {
     }
 
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
-        while (key != 0 && key != info.tree.root) {
+        uint40 root = info.tree.root;
+        while (key != 0 && key != root) {
+            // TODO: gas optimize. info.tree.nodes[key].parent == 0 &&
             if (info.orderInfos[key].executionId != 0) {
                 return info.orderInfos[key].executionId;
             }

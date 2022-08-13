@@ -59,8 +59,6 @@ library AccountLibrary {
         uint256 openPositionNotional;
         int256 accountValue;
         int256 realizedPnl;
-        uint256 totalExecutedBaseAsk;
-        uint256 totalExecutedBaseBid;
     }
 
     function _calcMarket(PerpdexStructs.AccountInfo storage accountInfo, address market)
@@ -70,12 +68,14 @@ library AccountLibrary {
     {
         PerpdexStructs.MakerInfo storage makerInfo = accountInfo.makerInfos[market];
         PerpdexStructs.TakerInfo memory takerInfo;
-        (
-            takerInfo,
-            response.realizedPnl,
-            response.totalExecutedBaseAsk,
-            response.totalExecutedBaseBid
-        ) = AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market);
+        (AccountPreviewLibrary.Execution[] memory executions, , ) =
+            AccountPreviewLibrary.getLimitOrderExecutions(accountInfo, market);
+
+        uint256 totalExecutedBaseAsk;
+        uint256 totalExecutedBaseBid;
+        (takerInfo, response.realizedPnl, totalExecutedBaseAsk, totalExecutedBaseBid) = AccountPreviewLibrary
+            .previewSettleLimitOrders(accountInfo, market, executions);
+
         response.baseShare = takerInfo.baseBalanceShare;
         response.quoteBalance = takerInfo.quoteBalance;
 
@@ -99,8 +99,8 @@ library AccountLibrary {
         }
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
-        totalOrderBaseAsk += limitOrderInfo.totalAskBase - response.totalExecutedBaseAsk;
-        totalOrderBaseBid += limitOrderInfo.totalBidBase - response.totalExecutedBaseBid;
+        totalOrderBaseAsk += limitOrderInfo.totalAskBase - totalExecutedBaseAsk;
+        totalOrderBaseBid += limitOrderInfo.totalBidBase - totalExecutedBaseBid;
         response.openPositionShare = Math.max(
             (response.baseShare - totalOrderBaseAsk.toInt256()).abs(),
             (response.baseShare + totalOrderBaseBid.toInt256()).abs()
@@ -149,6 +149,7 @@ library AccountLibrary {
             response.totalOpenPositionNotional = response.totalOpenPositionNotional.add(
                 marketResponse.openPositionNotional
             );
+            // TODO: consider limit order
             response.isLiquidationFree =
                 response.isLiquidationFree &&
                 marketResponse.baseShare >= marketResponse.baseSharePool;

@@ -153,7 +153,11 @@ library AccountPreviewLibrary {
         }
     }
 
-    function previewSettleLimitOrders(PerpdexStructs.AccountInfo storage accountInfo, address market)
+    function previewSettleLimitOrders(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        Execution[] memory executions
+    )
         internal
         view
         returns (
@@ -163,8 +167,6 @@ library AccountPreviewLibrary {
             uint256 totalExecutedBaseBid
         )
     {
-        (Execution[] memory executions, , ) = getLimitOrderExecutions(accountInfo, market);
-
         takerInfo = accountInfo.takerInfos[market];
 
         uint256 length = executions.length;
