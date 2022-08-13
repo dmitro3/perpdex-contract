@@ -97,8 +97,9 @@ describe("gas benchmark limit order", () => {
     describe("multiple market extreme", () => {
         it("ok", async () => {
             let calls = []
-            for (let i = 0; i < 50; i++) {
-                const market = markets[15]
+            const orderCount = 100
+            for (let i = 0; i < orderCount / 2; i++) {
+                const market = markets[markets.length - 1]
 
                 calls.push(
                     exchange.interface.encodeFunctionData("createLimitOrder", [
@@ -126,7 +127,7 @@ describe("gas benchmark limit order", () => {
             await multicallChunk(exchange.connect(bob), calls)
 
             calls = []
-            for (let i = 0; i < 16; i++) {
+            for (let i = 0; i < markets.length; i++) {
                 const market = markets[i]
                 calls.push(
                     exchange.interface.encodeFunctionData("createLimitOrder", [
@@ -172,7 +173,7 @@ describe("gas benchmark limit order", () => {
                     market: market.address,
                     isBaseToQuote: false,
                     isExactInput: false,
-                    amount: i < markets.length - 1 ? 1 : 5000,
+                    amount: i < markets.length - 1 ? 1 : (orderCount / 2) * 100,
                     oppositeAmountBound: Q96,
                     deadline: deadline,
                 })
@@ -185,7 +186,7 @@ describe("gas benchmark limit order", () => {
                     market: market.address,
                     isBaseToQuote: true,
                     isExactInput: true,
-                    amount: i < markets.length - 1 ? 1 : 4999,
+                    amount: i < markets.length - 1 ? 1 : (orderCount / 2) * 100 - 1,
                     oppositeAmountBound: 0,
                     deadline: deadline,
                 })

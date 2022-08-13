@@ -90,7 +90,7 @@ describe("gas benchmark limit order", () => {
     describe("multiple market typical", () => {
         it("ok", async () => {
             for (let i = 0; i < 50; i++) {
-                const market = markets[i % 16]
+                const market = markets[i % markets.length]
                 await exchange.connect(bob).createLimitOrder({
                     market: market.address,
                     isBid: true,
