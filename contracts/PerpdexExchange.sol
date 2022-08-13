@@ -35,6 +35,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     address public immutable settlementToken;
     uint8 public constant quoteDecimals = 18;
     uint8 public maxMarketsPerAccount = 16;
+    uint8 public maxOrdersPerAccount = 100;
     uint24 public imRatio = 10e4;
     uint24 public mmRatio = 5e4;
     uint24 public protocolFeeRatio = 0;
@@ -279,7 +280,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
                 base: params.base,
                 priceX96: params.priceX96,
                 imRatio: imRatio,
-                maxMarketsPerAccount: maxMarketsPerAccount
+                maxMarketsPerAccount: maxMarketsPerAccount,
+                maxOrdersPerAccount: maxOrdersPerAccount
             })
         );
         orderIdToTrader[params.market][params.isBid][orderId] = trader;
@@ -326,6 +328,11 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     function setMaxMarketsPerAccount(uint8 value) external onlyOwner nonReentrant {
         maxMarketsPerAccount = value;
         emit MaxMarketsPerAccountChanged(value);
+    }
+
+    function setMaxOrdersPerAccount(uint8 value) external onlyOwner nonReentrant {
+        maxOrdersPerAccount = value;
+        emit MaxOrdersPerAccountChanged(value);
     }
 
     function setImRatio(uint24 value) external onlyOwner nonReentrant {

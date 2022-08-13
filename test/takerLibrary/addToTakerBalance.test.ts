@@ -227,7 +227,7 @@ describe("TakerLibrary addToTakerBalance", () => {
                 if (test.revertedWith === void 0) {
                     await res.to.emit(library, "AddToTakerBalanceResult").withArgs(test.realizedPnl)
 
-                    const vault = await library.accountInfo()
+                    const vault = (await library.accountInfo()).vaultInfo
                     expect(vault.collateralBalance).to.eq(test.collateralBalance + test.realizedPnl)
 
                     const takerInfo = await library.getTakerInfo(market.address)

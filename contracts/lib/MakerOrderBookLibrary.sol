@@ -32,6 +32,7 @@ library MakerOrderBookLibrary {
         bool isBid;
         uint24 imRatio;
         uint8 maxMarketsPerAccount;
+        uint8 maxOrdersPerAccount;
     }
 
     struct CancelLimitOrderParams {
@@ -47,6 +48,7 @@ library MakerOrderBookLibrary {
         public
         returns (uint40 orderId)
     {
+        require(accountInfo.limitOrderCount < params.maxOrdersPerAccount, "MOBL_CLO: max order count");
         orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(params.isBid, params.base, params.priceX96);
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
@@ -56,6 +58,7 @@ library MakerOrderBookLibrary {
         } else {
             limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate, slot);
         }
+        accountInfo.limitOrderCount += 1;
 
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
 
@@ -80,6 +83,7 @@ library MakerOrderBookLibrary {
         } else {
             limitOrderInfo.ask.remove(params.orderId, aggregate, 0);
         }
+        accountInfo.limitOrderCount -= 1;
 
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
     }
@@ -161,6 +165,7 @@ library MakerOrderBookLibrary {
         }
 
         uint256 length = executions.length;
+        accountInfo.limitOrderCount -= length.toUint8();
         for (uint256 i = 0; i < length; ++i) {
             TakerLibrary.addToTakerBalance(
                 accountInfo,

@@ -29,7 +29,7 @@ describe("Vault withdraw eth", () => {
             await expect(res).to.emit(exchange, "Withdrawn").withArgs(alice.address, 30)
 
             const result = await exchange.accountInfos(alice.address)
-            expect(result.collateralBalance).to.eq(70)
+            expect(result.vaultInfo.collateralBalance).to.eq(70)
         })
 
         it("low account value", async () => {
@@ -73,7 +73,7 @@ describe("Vault withdraw eth", () => {
             await expect(res).to.emit(exchange, "Withdrawn").withArgs(alice.address, 1)
 
             const result = await exchange.accountInfos(alice.address)
-            expect(result.collateralBalance).to.eq(0)
+            expect(result.vaultInfo.collateralBalance).to.eq(0)
         })
 
         it("profit and no collateral and not liquidation free", async () => {

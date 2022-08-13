@@ -35,6 +35,7 @@ library PerpdexStructs {
         mapping(address => LimitOrderInfo) limitOrderInfos;
         VaultInfo vaultInfo;
         address[] markets;
+        uint8 limitOrderCount;
     }
 
     struct InsuranceFundInfo {

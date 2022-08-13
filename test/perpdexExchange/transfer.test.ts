@@ -31,7 +31,7 @@ describe("PerpdexExchange transfer", () => {
             expect(balance).to.eq(70)
 
             const result = await exchange.accountInfos(owner.address)
-            expect(result.collateralBalance).to.eq(30)
+            expect(result.vaultInfo.collateralBalance).to.eq(30)
         })
 
         it("force error, not enough balance", async () => {

@@ -86,7 +86,7 @@ describe("TakerLibrary", () => {
                         .emit(library, "ProcessLiquidationRewardResult")
                         .withArgs(test.penalty, test.liquidationReward, test.insuranceFundReward)
 
-                    const vault = await library.accountInfo()
+                    const vault = (await library.accountInfo()).vaultInfo
                     expect(vault.collateralBalance).to.eq(test.collateralBalance - test.penalty)
                     const liquidatorBalance = await library.liquidatorVaultInfo()
                     expect(liquidatorBalance).to.eq(test.liquidatorCollateralBalance + test.liquidationReward)

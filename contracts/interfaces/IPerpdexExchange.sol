@@ -149,6 +149,7 @@ interface IPerpdexExchange {
     );
 
     event MaxMarketsPerAccountChanged(uint8 value);
+    event MaxOrdersPerAccountChanged(uint8 value);
     event ImRatioChanged(uint24 value);
     event MmRatioChanged(uint24 value);
     event LiquidationRewardConfigChanged(uint24 rewardRatio, uint16 smoothEmaTime);
@@ -199,7 +200,10 @@ interface IPerpdexExchange {
 
     // default getters
 
-    function accountInfos(address trader) external view returns (PerpdexStructs.VaultInfo memory);
+    function accountInfos(address trader)
+        external
+        view
+        returns (PerpdexStructs.VaultInfo memory, uint8 limitOrderCount);
 
     function insuranceFundInfo() external view returns (int256 balance, uint256 liquidationRewardBalance);
 

@@ -663,11 +663,11 @@ describe("PerpdexExchange trade", () => {
                         }
 
                         const accountInfo = await exchange.accountInfos(alice.address)
-                        expect(accountInfo.collateralBalance).to.eq(test.afterCollateralBalance)
+                        expect(accountInfo.vaultInfo.collateralBalance).to.eq(test.afterCollateralBalance)
 
                         if (test.notSelf) {
                             const accountInfoBob = await exchange.accountInfos(bob.address)
-                            expect(accountInfoBob.collateralBalance).to.eq(test.liquidationReward)
+                            expect(accountInfoBob.vaultInfo.collateralBalance).to.eq(test.liquidationReward)
                         }
 
                         const takerInfo = await exchange.getTakerInfo(alice.address, market.address)
