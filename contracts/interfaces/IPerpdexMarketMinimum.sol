@@ -66,6 +66,8 @@ interface IPerpdexMarketMinimum {
 
     function baseBalancePerShareX96() external view returns (uint256);
 
+    function getLimitOrderInfo(bool isBid, uint40 orderId) external view returns (uint256 base, uint256 priceX96);
+
     function getLimitOrderExecution(bool isBid, uint40 orderId)
         external
         view

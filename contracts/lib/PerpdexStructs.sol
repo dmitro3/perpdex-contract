@@ -20,6 +20,8 @@ library PerpdexStructs {
     struct LimitOrderInfo {
         RBTreeLibrary.Tree ask;
         RBTreeLibrary.Tree bid;
+        uint256 totalAskBase;
+        uint256 totalBidBase;
     }
 
     struct VaultInfo {

@@ -114,18 +114,12 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         if (response.rawResponse.partialKey != 0) {
             address partialTrader =
                 orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialKey];
-            _settleLimitOrders(partialTrader);
-            partialRealizedPnL = TakerLibrary.addToTakerBalance(
+            partialRealizedPnL = MakerOrderBookLibrary.processPartialExecution(
                 accountInfos[partialTrader],
                 params.market,
-                params.isBaseToQuote
-                    ? response.rawResponse.basePartial.toInt256()
-                    : response.rawResponse.basePartial.neg256(),
-                params.isBaseToQuote
-                    ? response.rawResponse.quotePartial.neg256()
-                    : response.rawResponse.quotePartial.toInt256(),
-                0,
-                maxMarketsPerAccount
+                params.isBaseToQuote,
+                maxMarketsPerAccount,
+                response.rawResponse
             );
 
             emit PartiallyExecuted(

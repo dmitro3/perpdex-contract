@@ -19,6 +19,7 @@ import {
 
 library MakerOrderBookLibrary {
     using PerpMath for int256;
+    using PerpMath for uint256;
     using SafeCast for int256;
     using SafeCast for uint256;
     using SafeMath for uint256;
@@ -55,8 +56,10 @@ library MakerOrderBookLibrary {
         uint256 slot = getSlot(limitOrderInfo);
         if (params.isBid) {
             limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), lessThanBid, aggregate, slot);
+            limitOrderInfo.totalBidBase += params.base;
         } else {
             limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate, slot);
+            limitOrderInfo.totalAskBase += params.base;
         }
         accountInfo.limitOrderCount += 1;
 
@@ -75,12 +78,15 @@ library MakerOrderBookLibrary {
             require(isLiquidation, "MOBL_CLO: enough mm");
         }
 
+        (uint256 base, ) = IPerpdexMarketMinimum(params.market).getLimitOrderInfo(params.isBid, params.orderId);
         IPerpdexMarketMinimum(params.market).cancelLimitOrder(params.isBid, params.orderId);
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         if (params.isBid) {
+            limitOrderInfo.totalBidBase -= base;
             limitOrderInfo.bid.remove(params.orderId, aggregate, 0);
         } else {
+            limitOrderInfo.totalAskBase -= base;
             limitOrderInfo.ask.remove(params.orderId, aggregate, 0);
         }
         accountInfo.limitOrderCount -= 1;
@@ -135,7 +141,7 @@ library MakerOrderBookLibrary {
 
     function subtreeRemoved(uint40, uint256) private pure {}
 
-    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) external {
+    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) public {
         address[] storage markets = accountInfo.markets;
         uint256 i = markets.length;
         while (i > 0) {
@@ -167,6 +173,12 @@ library MakerOrderBookLibrary {
         uint256 length = executions.length;
         accountInfo.limitOrderCount -= length.toUint8();
         for (uint256 i = 0; i < length; ++i) {
+            int256 executedBase = executions[i].executedBase;
+            if (executions[i].executedBase >= 0) {
+                limitOrderInfo.totalBidBase -= executedBase.abs();
+            } else {
+                limitOrderInfo.totalAskBase -= executedBase.abs();
+            }
             TakerLibrary.addToTakerBalance(
                 accountInfo,
                 market,
@@ -176,6 +188,30 @@ library MakerOrderBookLibrary {
                 maxMarketsPerAccount
             );
         }
+    }
+
+    function processPartialExecution(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        bool isBaseToQuote,
+        uint8 maxMarketsPerAccount,
+        IPerpdexMarketMinimum.SwapResponse memory rawResponse
+    ) external returns (int256 realizedPnl) {
+        settleLimitOrdersAll(accountInfo, maxMarketsPerAccount);
+        PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
+        if (isBaseToQuote) {
+            limitOrderInfo.totalBidBase -= rawResponse.basePartial;
+        } else {
+            limitOrderInfo.totalAskBase -= rawResponse.basePartial;
+        }
+        realizedPnl = TakerLibrary.addToTakerBalance(
+            accountInfo,
+            market,
+            isBaseToQuote ? rawResponse.basePartial.toInt256() : rawResponse.basePartial.neg256(),
+            isBaseToQuote ? rawResponse.quotePartial.neg256() : rawResponse.quotePartial.toInt256(),
+            0,
+            maxMarketsPerAccount
+        );
     }
 
     function getLimitOrderIds(

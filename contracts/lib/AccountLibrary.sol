@@ -3,6 +3,7 @@ pragma solidity >=0.7.6;
 
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import { PerpMath } from "./PerpMath.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
 import { PRBMath } from "prb-math/contracts/PRBMath.sol";
@@ -139,11 +140,16 @@ library AccountLibrary {
         returns (uint256 result)
     {
         PerpdexStructs.MakerInfo storage makerInfo = accountInfo.makerInfos[market];
-        result = getPositionShare(accountInfo, market).abs();
+        int256 longPos = getPositionShare(accountInfo, market);
+        int256 shortPos = longPos;
         if (makerInfo.liquidity != 0) {
             (uint256 poolBaseShare, ) = IPerpdexMarketMinimum(market).getLiquidityValue(makerInfo.liquidity);
-            result = result.add(poolBaseShare);
+            longPos = longPos.add(poolBaseShare.toInt256());
+            shortPos = shortPos.sub(poolBaseShare.toInt256());
         }
+        longPos = longPos.add(accountInfo.limitOrderInfos[market].totalBidBase.toInt256());
+        shortPos = shortPos.sub(accountInfo.limitOrderInfos[market].totalAskBase.toInt256());
+        return Math.max(longPos.abs(), shortPos.abs());
     }
 
     function getOpenPositionNotional(PerpdexStructs.AccountInfo storage accountInfo, address market)
