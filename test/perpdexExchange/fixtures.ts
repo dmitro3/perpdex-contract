@@ -9,6 +9,7 @@ import {
 import { BigNumber, Wallet } from "ethers"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
+import _ from "lodash"
 
 export interface PerpdexExchangeFixture {
     perpdexExchange: TestPerpdexExchange
@@ -30,13 +31,15 @@ interface Params {
     linear?: Boolean
     isMarketAllowed?: Boolean
     initPool?: Boolean
+    marketCount?: number
 }
 
 const Q96 = BigNumber.from(2).pow(96)
 
 export function createPerpdexExchangeFixture(
-    params: Params = { linear: false, isMarketAllowed: false, initPool: false },
+    params: Params = {},
 ): (wallets, provider) => Promise<PerpdexExchangeFixture> {
+    params = _.extend({ linear: false, isMarketAllowed: false, initPool: false, marketCount: 1 }, params)
     return async ([owner, alice, bob, carol], provider): Promise<PerpdexExchangeFixture> => {
         let settlementToken = hre.ethers.constants.AddressZero
         let USDC
@@ -80,7 +83,7 @@ export function createPerpdexExchangeFixture(
         })
         const perpdexMarkets = []
         const priceFeeds = []
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < params.marketCount; i++) {
             priceFeeds[i] = await waffle.deployMockContract(owner, IPerpdexPriceFeedJson.abi)
             await priceFeeds[i].mock.getPrice.returns(BigNumber.from(10).pow(18))
             await priceFeeds[i].mock.decimals.returns(18)

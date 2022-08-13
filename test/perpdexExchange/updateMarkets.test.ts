@@ -70,6 +70,7 @@ describe("PerpdexExchange updateMarkets", () => {
             createPerpdexExchangeFixture({
                 isMarketAllowed: true,
                 initPool: true,
+                marketCount: 3,
             }),
         )
         exchange = fixture.perpdexExchange

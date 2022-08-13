@@ -17,12 +17,16 @@ describe("PerpdexExchange getters", () => {
     const Q96 = BigNumber.from(2).pow(96)
 
     beforeEach(async () => {
-        fixture = await loadFixture(createPerpdexExchangeFixture())
+        fixture = await loadFixture(
+            createPerpdexExchangeFixture({
+                marketCount: 2,
+            }),
+        )
         exchange = fixture.perpdexExchange
         market = fixture.perpdexMarket
         owner = fixture.owner
         alice = fixture.alice
-        markets = fixture.perpdexMarkets.slice(0, 2)
+        markets = fixture.perpdexMarkets
     })
 
     describe("AccountLibrary getters two markets", () => {
