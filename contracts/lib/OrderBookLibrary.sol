@@ -220,13 +220,13 @@ library OrderBookLibrary {
         MarketStructs.OrderBookInfo storage orderBookInfo,
         PreviewSwapParams memory params,
         function(bool, bool, uint256) view returns (uint256) maxSwapArg,
-        function(bool, bool, uint256) returns (uint256) swap
+        function(bool, bool, uint256) returns (uint256) swapArg
     ) internal returns (SwapResponse memory swapResponse) {
         MarketStructs.OrderBookSideInfo storage info = params.isBaseToQuote ? orderBookInfo.bid : orderBookInfo.ask;
         PreviewSwapResponse memory response = previewSwap(info, params, maxSwapArg);
 
         if (response.amountPool > 0) {
-            swapResponse.oppositeAmount += swap(params.isBaseToQuote, params.isExactInput, response.amountPool);
+            swapResponse.oppositeAmount += swapArg(params.isBaseToQuote, params.isExactInput, response.amountPool);
         }
 
         bool isBase = params.isBaseToQuote == params.isExactInput;

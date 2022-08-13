@@ -36,7 +36,7 @@ contract TestOrderBookLibrary {
         bool isBaseToQuote,
         bool isExactInput,
         uint256 priceX96
-    ) private view returns (uint256 amount) {
+    ) private pure returns (uint256 amount) {
         uint256 base;
         if (isBaseToQuote) {
             if (priceX96 < FixedPoint96.Q96) {

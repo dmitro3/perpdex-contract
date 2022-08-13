@@ -125,11 +125,11 @@ library MakerOrderBookLibrary {
         return lessThan(info.bid, true, key0, key1);
     }
 
-    function aggregate(uint40 key, uint256 slot) private pure returns (bool) {
+    function aggregate(uint40, uint256) private pure returns (bool) {
         return true;
     }
 
-    function subtreeRemoved(uint40 key, uint256 slot) private pure {}
+    function subtreeRemoved(uint40, uint256) private pure {}
 
     function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) external {
         address[] storage markets = accountInfo.markets;

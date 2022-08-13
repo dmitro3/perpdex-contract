@@ -29,7 +29,7 @@ library AccountPreviewLibrary {
         int256 baseShare,
         int256 quoteBalance,
         int256 quoteFee
-    ) internal view returns (PerpdexStructs.TakerInfo memory resultTakerInfo, int256 realizedPnl) {
+    ) internal pure returns (PerpdexStructs.TakerInfo memory resultTakerInfo, int256 realizedPnl) {
         if (baseShare != 0 || quoteBalance != 0) {
             require(baseShare.sign() * quoteBalance.sign() == -1, "TL_ATTB: invalid input");
 
