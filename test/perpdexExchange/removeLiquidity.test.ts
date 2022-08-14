@@ -162,8 +162,6 @@ describe("PerpdexExchange removeLiquidity", () => {
                     cumBaseSharePerLiquidityX96: 0, // debt -10
                     cumQuotePerLiquidityX96: 0, // debt -20
                 },
-                baseBalancePerShareX96: BigNumber.from("71305346262837903834189555303"),
-                sharePrice: BigNumber.from("71312477510588962730462601562"),
             },
             {
                 title: "minBase condition",
@@ -362,9 +360,10 @@ describe("PerpdexExchange removeLiquidity", () => {
                             test.outputTakerBase,
                             test.outputTakerQuote,
                             test.afterCollateralBalance - test.collateralBalance,
-                            test.baseBalancePerShareX96 || (test.poolInfo ? test.poolInfo.baseBalancePerShareX96 : Q96),
-                            test.sharePrice || sharePrice,
                         )
+
+                    expect(await market.baseBalancePerShareX96()).to.eq(test.poolInfo?.baseBalancePerShareX96 || Q96)
+                    expect(await market.getShareMarkPriceX96()).to.eq(sharePrice)
 
                     const accountInfo = await exchange.accountInfos(alice.address)
                     expect(accountInfo.vaultInfo.collateralBalance).to.eq(test.afterCollateralBalance)

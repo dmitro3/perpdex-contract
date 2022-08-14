@@ -233,8 +233,6 @@ describe("PerpdexExchange addLiquidity", () => {
                         .div(5)
                         .sub(1), // 1000 + rounding error
                 },
-                baseBalancePerShareX96: BigNumber.from("71305346262837903834189555303"),
-                sharePrice: BigNumber.from("71313190635364068620089906188"),
             },
             {
                 title: "minBase condition",
@@ -405,9 +403,10 @@ describe("PerpdexExchange addLiquidity", () => {
                             test.afterMakerInfo.liquidity - test.makerInfo.liquidity,
                             test.afterMakerInfo.cumBaseSharePerLiquidityX96,
                             test.afterMakerInfo.cumQuotePerLiquidityX96,
-                            test.baseBalancePerShareX96 || (test.poolInfo ? test.poolInfo.baseBalancePerShareX96 : Q96),
-                            test.sharePrice || sharePrice,
                         )
+
+                    expect(await market.baseBalancePerShareX96()).to.eq(test.poolInfo?.baseBalancePerShareX96 || Q96)
+                    expect(await market.getShareMarkPriceX96()).to.eq(sharePrice)
 
                     const accountInfo = await exchange.accountInfos(alice.address)
                     expect(accountInfo.vaultInfo.collateralBalance).to.eq(test.afterCollateralBalance)

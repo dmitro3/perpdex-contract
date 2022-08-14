@@ -194,9 +194,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
                 })
             );
 
-        uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
-        uint256 shareMarkPriceAfterX96 = IPerpdexMarketMinimum(params.market).getShareMarkPriceX96();
-
         PerpdexStructs.MakerInfo storage makerInfo = accountInfos[trader].makerInfos[params.market];
         emit LiquidityAdded(
             trader,
@@ -205,9 +202,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
             response.quote,
             response.liquidity,
             makerInfo.cumBaseSharePerLiquidityX96,
-            makerInfo.cumQuotePerLiquidityX96,
-            baseBalancePerShareX96,
-            shareMarkPriceAfterX96
+            makerInfo.cumQuotePerLiquidityX96
         );
 
         return (response.base, response.quote, response.liquidity);
@@ -236,9 +231,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
                 })
             );
 
-        uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
-        uint256 shareMarkPriceAfterX96 = IPerpdexMarketMinimum(params.market).getShareMarkPriceX96();
-
         emit LiquidityRemoved(
             params.trader,
             params.market,
@@ -248,9 +240,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
             params.liquidity,
             response.takerBase,
             response.takerQuote,
-            response.realizedPnl,
-            baseBalancePerShareX96,
-            shareMarkPriceAfterX96
+            response.realizedPnl
         );
 
         return (response.base, response.quote);

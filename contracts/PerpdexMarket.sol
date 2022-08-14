@@ -173,8 +173,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
             PoolLibrary.AddLiquidityParams({ base: baseShare, quote: quoteBalance })
         );
         emit LiquidityAdded(base, quote, liquidity);
-
-        _processFunding();
     }
 
     function removeLiquidity(uint256 liquidity)
@@ -188,8 +186,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
             PoolLibrary.RemoveLiquidityParams({ liquidity: liquidity })
         );
         emit LiquidityRemoved(base, quote, liquidity);
-
-        _processFunding();
     }
 
     function createLimitOrder(
