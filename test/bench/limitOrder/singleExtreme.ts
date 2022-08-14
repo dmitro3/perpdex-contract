@@ -27,6 +27,7 @@ describe("gas benchmark limit order", () => {
         bob = fixture.bob
         priceFeed = fixture.priceFeed
 
+        await exchange.connect(owner).setMaxOrdersPerAccount(100)
         await exchange.connect(owner).setImRatio(10e4)
         await exchange.connect(owner).setMmRatio(5e4)
         await exchange.connect(owner).setLiquidationRewardConfig({

@@ -35,7 +35,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     address public immutable settlementToken;
     uint8 public constant quoteDecimals = 18;
     uint8 public maxMarketsPerAccount = 16;
-    uint8 public maxOrdersPerAccount = 100;
+    uint8 public maxOrdersPerAccount = 40;
     uint24 public imRatio = 10e4;
     uint24 public mmRatio = 5e4;
     uint24 public protocolFeeRatio = 0;
