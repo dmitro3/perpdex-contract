@@ -99,8 +99,8 @@ library AccountLibrary {
         }
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
-        totalOrderBaseAsk += limitOrderInfo.totalAskBase - totalExecutedBaseAsk;
-        totalOrderBaseBid += limitOrderInfo.totalBidBase - totalExecutedBaseBid;
+        totalOrderBaseAsk += limitOrderInfo.totalBaseAsk - totalExecutedBaseAsk;
+        totalOrderBaseBid += limitOrderInfo.totalBaseBid - totalExecutedBaseBid;
         response.openPositionShare = Math.max(
             (response.baseShare - totalOrderBaseAsk.toInt256()).abs(),
             (response.baseShare + totalOrderBaseBid.toInt256()).abs()

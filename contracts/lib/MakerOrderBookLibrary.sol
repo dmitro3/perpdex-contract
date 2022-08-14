@@ -56,10 +56,10 @@ library MakerOrderBookLibrary {
         uint256 slot = getSlot(limitOrderInfo);
         if (params.isBid) {
             limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), lessThanBid, aggregate, slot);
-            limitOrderInfo.totalBidBase += params.base;
+            limitOrderInfo.totalBaseBid += params.base;
         } else {
             limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate, slot);
-            limitOrderInfo.totalAskBase += params.base;
+            limitOrderInfo.totalBaseAsk += params.base;
         }
         accountInfo.limitOrderCount += 1;
 
@@ -83,10 +83,10 @@ library MakerOrderBookLibrary {
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         if (params.isBid) {
-            limitOrderInfo.totalBidBase -= base;
+            limitOrderInfo.totalBaseBid -= base;
             limitOrderInfo.bid.remove(params.orderId, aggregate, 0);
         } else {
-            limitOrderInfo.totalAskBase -= base;
+            limitOrderInfo.totalBaseAsk -= base;
             limitOrderInfo.ask.remove(params.orderId, aggregate, 0);
         }
         accountInfo.limitOrderCount -= 1;
@@ -184,8 +184,8 @@ library MakerOrderBookLibrary {
             totalExecutedBaseBid
         ) = AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market, executions);
 
-        limitOrderInfo.totalAskBase -= totalExecutedBaseAsk;
-        limitOrderInfo.totalBidBase -= totalExecutedBaseBid;
+        limitOrderInfo.totalBaseAsk -= totalExecutedBaseAsk;
+        limitOrderInfo.totalBaseBid -= totalExecutedBaseBid;
         accountInfo.limitOrderCount -= executionLength.toUint8();
         accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(realizedPnl);
         AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);
@@ -201,9 +201,9 @@ library MakerOrderBookLibrary {
         settleLimitOrders(accountInfo, market, maxMarketsPerAccount);
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         if (isBaseToQuote) {
-            limitOrderInfo.totalBidBase -= rawResponse.basePartial;
+            limitOrderInfo.totalBaseBid -= rawResponse.basePartial;
         } else {
-            limitOrderInfo.totalAskBase -= rawResponse.basePartial;
+            limitOrderInfo.totalBaseAsk -= rawResponse.basePartial;
         }
         realizedPnl = TakerLibrary.addToTakerBalance(
             accountInfo,
