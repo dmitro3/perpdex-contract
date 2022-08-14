@@ -109,6 +109,7 @@ library OrderBookLibrary {
 
         executedBase = info.orderInfos[key].base;
         // rounding error occurs, but it is negligible.
+
         executedQuote = PRBMath.mulDiv(
             _getQuote(info, key),
             orderBookInfo.executionInfos[executionId].baseBalancePerShareX96,
@@ -117,7 +118,9 @@ library OrderBookLibrary {
     }
 
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
-        while (key != 0 && key != info.tree.root) {
+        uint40 root = info.tree.root;
+        while (key != 0 && key != root) {
+            // TODO: gas optimize. info.tree.nodes[key].parent == 0 &&
             if (info.orderInfos[key].executionId != 0) {
                 return info.orderInfos[key].executionId;
             }
@@ -220,13 +223,13 @@ library OrderBookLibrary {
         MarketStructs.OrderBookInfo storage orderBookInfo,
         PreviewSwapParams memory params,
         function(bool, bool, uint256) view returns (uint256) maxSwapArg,
-        function(bool, bool, uint256) returns (uint256) swap
+        function(bool, bool, uint256) returns (uint256) swapArg
     ) internal returns (SwapResponse memory swapResponse) {
         MarketStructs.OrderBookSideInfo storage info = params.isBaseToQuote ? orderBookInfo.bid : orderBookInfo.ask;
         PreviewSwapResponse memory response = previewSwap(info, params, maxSwapArg);
 
         if (response.amountPool > 0) {
-            swapResponse.oppositeAmount += swap(params.isBaseToQuote, params.isExactInput, response.amountPool);
+            swapResponse.oppositeAmount += swapArg(params.isBaseToQuote, params.isExactInput, response.amountPool);
         }
 
         bool isBase = params.isBaseToQuote == params.isExactInput;
@@ -273,7 +276,6 @@ library OrderBookLibrary {
         bool isBaseToQuote;
         bool isExactInput;
         uint256 amount;
-        bool noRevert;
         uint256 baseBalancePerShareX96;
     }
 

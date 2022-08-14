@@ -72,6 +72,8 @@ library TakerLibrary {
 
         if (response.isLiquidation) {
             require(accountInfo.makerInfos[params.market].liquidity == 0, "TL_OP: no maker when liquidation");
+            require(accountInfo.limitOrderInfos[params.market].ask.root == 0, "TL_OP: no ask when liquidation");
+            require(accountInfo.limitOrderInfos[params.market].bid.root == 0, "TL_OP: no bid when liquidation");
         }
 
         int256 takerBaseBefore = accountInfo.takerInfos[params.market].baseBalanceShare;
@@ -151,6 +153,8 @@ library TakerLibrary {
 
         if (isLiquidation) {
             require(accountInfo.makerInfos[params.market].liquidity == 0, "TL_OPD: no maker when liq");
+            require(accountInfo.limitOrderInfos[params.market].ask.root == 0, "TL_OPD: no ask when liq");
+            require(accountInfo.limitOrderInfos[params.market].bid.root == 0, "TL_OPD: no bid when liq");
         }
 
         oppositeAmount;
@@ -190,7 +194,12 @@ library TakerLibrary {
             return 0;
         }
 
-        if (isLiquidation && accountInfo.makerInfos[market].liquidity != 0) {
+        if (
+            isLiquidation &&
+            (accountInfo.makerInfos[market].liquidity != 0 ||
+                accountInfo.limitOrderInfos[market].ask.root != 0 ||
+                accountInfo.limitOrderInfos[market].bid.root != 0)
+        ) {
             return 0;
         }
 

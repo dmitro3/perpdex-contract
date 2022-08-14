@@ -26,6 +26,7 @@ describe("PerpdexExchange config", () => {
     describe("initial values", () => {
         it("ok", async () => {
             expect(await exchange.maxMarketsPerAccount()).to.eq(16)
+            expect(await exchange.maxOrdersPerAccount()).to.eq(40)
             expect(await exchange.imRatio()).to.eq(10e4)
             expect(await exchange.mmRatio()).to.eq(5e4)
             const liqConfig = await exchange.liquidationRewardConfig()
@@ -49,6 +50,25 @@ describe("PerpdexExchange config", () => {
 
         it("revert when not owner", async () => {
             await expect(exchange.connect(alice).setMaxMarketsPerAccount(1)).to.be.revertedWith(
+                "Ownable: caller is not the owner",
+            )
+        })
+    })
+
+    describe("setMaxOrdersPerAccount", () => {
+        it("ok", async () => {
+            await expect(exchange.connect(owner).setMaxOrdersPerAccount(0))
+                .to.emit(exchange, "MaxOrdersPerAccountChanged")
+                .withArgs(0)
+            expect(await exchange.maxOrdersPerAccount()).to.eq(0)
+            await expect(exchange.connect(owner).setMaxOrdersPerAccount(255))
+                .to.emit(exchange, "MaxOrdersPerAccountChanged")
+                .withArgs(255)
+            expect(await exchange.maxOrdersPerAccount()).to.eq(255)
+        })
+
+        it("revert when not owner", async () => {
+            await expect(exchange.connect(alice).setMaxOrdersPerAccount(1)).to.be.revertedWith(
                 "Ownable: caller is not the owner",
             )
         })

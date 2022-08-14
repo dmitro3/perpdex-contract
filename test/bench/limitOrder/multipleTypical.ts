@@ -1,10 +1,10 @@
 import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../../perpdexExchange/fixtures"
-import { BigNumber, Wallet } from "ethers"
+import { BigNumber, BigNumberish, Wallet } from "ethers"
 import { MockContract } from "ethereum-waffle"
 
-describe("gas benchmark amm only", () => {
+describe("gas benchmark limit order", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
     let fixture
 
@@ -31,15 +31,13 @@ describe("gas benchmark amm only", () => {
         bob = fixture.bob
         priceFeed = fixture.priceFeed
 
+        await exchange.connect(owner).setMaxOrdersPerAccount(100)
         await exchange.connect(owner).setImRatio(10e4)
         await exchange.connect(owner).setMmRatio(5e4)
         await exchange.connect(owner).setLiquidationRewardConfig({
             rewardRatio: 25e4,
             smoothEmaTime: 1,
         })
-
-        await exchange.setInsuranceFundInfo({ balance: 10000, liquidationRewardBalance: 0 })
-        await exchange.setProtocolInfo({ protocolFee: 10000 })
 
         await exchange.setAccountInfo(
             owner.address,
@@ -51,6 +49,14 @@ describe("gas benchmark amm only", () => {
 
         await exchange.setAccountInfo(
             alice.address,
+            {
+                collateralBalance: 100000,
+            },
+            [],
+        )
+
+        await exchange.setAccountInfo(
+            bob.address,
             {
                 collateralBalance: 100000,
             },
@@ -82,8 +88,26 @@ describe("gas benchmark amm only", () => {
         }
     })
 
-    describe("many market", () => {
+    describe("multiple market typical", () => {
         it("ok", async () => {
+            for (let i = 0; i < 50; i++) {
+                const market = markets[i % markets.length]
+                await exchange.connect(bob).createLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    base: 100,
+                    priceX96: Q96,
+                    deadline: deadline,
+                })
+                await exchange.connect(bob).createLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    base: 100,
+                    priceX96: Q96,
+                    deadline: deadline,
+                })
+            }
+
             for (let i = 0; i < markets.length; i++) {
                 const market = markets[i]
                 await exchange.connect(alice).trade({
@@ -91,11 +115,12 @@ describe("gas benchmark amm only", () => {
                     market: market.address,
                     isBaseToQuote: false,
                     isExactInput: false,
-                    amount: 100,
-                    oppositeAmountBound: 1000,
+                    amount: 101,
+                    oppositeAmountBound: Q96,
                     deadline: deadline,
                 })
             }
+
             for (let i = 0; i < markets.length; i++) {
                 const market = markets[i]
                 await exchange.connect(alice).trade({
@@ -103,11 +128,11 @@ describe("gas benchmark amm only", () => {
                     market: market.address,
                     isBaseToQuote: true,
                     isExactInput: true,
-                    amount: 100,
+                    amount: 101,
                     oppositeAmountBound: 0,
                     deadline: deadline,
                 })
             }
-        })
+        }).timeout(5 * 60 * 1000)
     })
 })

@@ -38,10 +38,10 @@ describe("PerpdexExchange trade consistency", () => {
         await market.connect(owner).setFundingMaxPremiumRatio(0)
         await exchange.connect(owner).setIsMarketAllowed(market.address, true)
         await market.connect(owner).setPriceLimitConfig({
-            normalOrderRatio: 5e4,
-            liquidationRatio: 10e4,
-            emaNormalOrderRatio: 5e4,
-            emaLiquidationRatio: 10e4,
+            normalOrderRatio: 1e5,
+            liquidationRatio: 2e5,
+            emaNormalOrderRatio: 1e5,
+            emaLiquidationRatio: 2e5,
             emaSec: 300,
         })
 

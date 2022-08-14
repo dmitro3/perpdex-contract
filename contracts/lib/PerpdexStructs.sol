@@ -20,6 +20,8 @@ library PerpdexStructs {
     struct LimitOrderInfo {
         RBTreeLibrary.Tree ask;
         RBTreeLibrary.Tree bid;
+        uint256 totalBaseAsk;
+        uint256 totalBaseBid;
     }
 
     struct VaultInfo {
@@ -35,6 +37,7 @@ library PerpdexStructs {
         mapping(address => LimitOrderInfo) limitOrderInfos;
         VaultInfo vaultInfo;
         address[] markets;
+        uint8 limitOrderCount;
     }
 
     struct InsuranceFundInfo {

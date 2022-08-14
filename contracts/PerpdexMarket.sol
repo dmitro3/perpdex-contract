@@ -85,7 +85,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
         bool isLiquidation
     ) external onlyExchange nonReentrant returns (SwapResponse memory response) {
         (uint256 maxAmount, MarketStructs.PriceLimitInfo memory updated) =
-            _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
+            _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation, 0);
         require(amount <= maxAmount, "PM_S: too large amount");
 
         OrderBookLibrary.SwapResponse memory swapResponse;
@@ -96,7 +96,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false,
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
@@ -109,7 +108,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false,
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
@@ -261,7 +259,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
         uint256 amount,
         bool isLiquidation
     ) external view returns (uint256 oppositeAmount) {
-        (uint256 maxAmount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
+        (uint256 maxAmount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation, 0);
         require(amount <= maxAmount, "PM_PS: too large amount");
 
         OrderBookLibrary.PreviewSwapResponse memory response =
@@ -271,7 +269,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false,
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap
@@ -283,10 +280,9 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
             PoolLibrary.SwapParams({
                 isBaseToQuote: isBaseToQuote,
                 isExactInput: isExactInput,
-                amount: amount,
+                amount: response.amountPool,
                 feeRatio: poolFeeRatio
-            }),
-            false
+            })
         );
         bool isOppositeBase = isBaseToQuote != isExactInput;
         if (isOppositeBase) {
@@ -317,7 +313,15 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
         bool isExactInput,
         bool isLiquidation
     ) external view returns (uint256 amount) {
-        (amount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation);
+        (amount, ) = _doMaxSwap(isBaseToQuote, isExactInput, isLiquidation, 0);
+    }
+
+    function maxSwapByPrice(
+        bool isBaseToQuote,
+        bool isExactInput,
+        uint256 sharePriceX96
+    ) external view returns (uint256 amount) {
+        (amount, ) = _doMaxSwap(isBaseToQuote, isExactInput, false, sharePriceX96);
     }
 
     function getShareMarkPriceX96() public view returns (uint256) {
@@ -403,35 +407,38 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     function _doMaxSwap(
         bool isBaseToQuote,
         bool isExactInput,
-        bool isLiquidation
+        bool isLiquidation,
+        uint256 sharePriceX96
     ) private view returns (uint256 amount, MarketStructs.PriceLimitInfo memory updated) {
         if (poolInfo.totalLiquidity == 0) return (0, updated);
 
-        uint256 sharePriceBeforeX96 = getShareMarkPriceX96();
-        updated = PriceLimitLibrary.updateDry(priceLimitInfo, priceLimitConfig, sharePriceBeforeX96);
+        if (sharePriceX96 == 0) {
+            uint256 sharePriceBeforeX96 = getShareMarkPriceX96();
+            updated = PriceLimitLibrary.updateDry(priceLimitInfo, priceLimitConfig, sharePriceBeforeX96);
 
-        uint256 sharePriceBound =
-            PriceLimitLibrary.priceBound(
+            sharePriceX96 = PriceLimitLibrary.priceBound(
                 updated.referencePrice,
                 updated.emaPrice,
                 priceLimitConfig,
                 isLiquidation,
                 !isBaseToQuote
             );
+        }
+
         amount = PoolLibrary.maxSwap(
             poolInfo.base,
             poolInfo.quote,
             isBaseToQuote,
             isExactInput,
             poolFeeRatio,
-            sharePriceBound
+            sharePriceX96
         );
 
         amount += OrderBookLibrary.maxSwap(
             isBaseToQuote ? orderBookInfo.bid : orderBookInfo.ask,
             isBaseToQuote,
             isExactInput,
-            sharePriceBound,
+            sharePriceX96,
             poolInfo.baseBalancePerShareX96
         );
     }

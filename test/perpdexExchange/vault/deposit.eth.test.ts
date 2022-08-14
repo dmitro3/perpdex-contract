@@ -22,7 +22,7 @@ describe("Vault deposit eth", () => {
             await expect(res).to.emit(exchange, "Deposited").withArgs(alice.address, 100)
 
             const result = await exchange.accountInfos(alice.address)
-            expect(result.collateralBalance).to.eq(100)
+            expect(result.vaultInfo.collateralBalance).to.eq(100)
         })
 
         it("force error, amount is not zero", async () => {

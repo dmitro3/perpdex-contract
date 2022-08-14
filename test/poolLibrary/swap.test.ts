@@ -2,8 +2,7 @@ import { expect } from "chai"
 import { waffle } from "hardhat"
 import { TestPoolLibrary } from "../../typechain"
 import { createPoolLibraryFixture } from "./fixtures"
-import { BigNumber, BigNumberish, Wallet } from "ethers"
-import { MockContract } from "ethereum-waffle"
+import { BigNumber } from "ethers"
 import { PANIC_CODES } from "@nomicfoundation/hardhat-chai-matchers/panic"
 
 describe("PoolLibrary swap", () => {
@@ -20,7 +19,7 @@ describe("PoolLibrary swap", () => {
     })
 
     describe("empty pool", () => {
-        it("revert", async () => {
+        it("zero", async () => {
             await expect(
                 library.swap({
                     isBaseToQuote: false,
@@ -28,7 +27,9 @@ describe("PoolLibrary swap", () => {
                     amount: 1,
                     feeRatio: 0,
                 }),
-            ).to.be.reverted
+            )
+                .to.emit(library, "SwapResult")
+                .withArgs(0)
         })
     })
 
@@ -85,28 +86,36 @@ describe("PoolLibrary swap", () => {
                 isBaseToQuote: false,
                 isExactInput: true,
                 amount: 0,
-                revertedWith: "PL_SD: output is zero",
+                oppositeAmount: 0,
+                base: 10000,
+                quote: 10000,
             },
             {
                 title: "short exact input zero",
                 isBaseToQuote: true,
                 isExactInput: true,
                 amount: 0,
-                revertedWith: "PL_SD: output is zero",
+                oppositeAmount: 0,
+                base: 10000,
+                quote: 10000,
             },
             {
                 title: "long exact output zero",
                 isBaseToQuote: false,
                 isExactInput: false,
                 amount: 0,
-                revertedWith: "PL_SD: output is zero",
+                oppositeAmount: 0,
+                base: 10000,
+                quote: 10000,
             },
             {
                 title: "short exact input zero",
                 isBaseToQuote: true,
                 isExactInput: false,
                 amount: 0,
-                revertedWith: "PL_SD: output is zero",
+                oppositeAmount: 0,
+                base: 10000,
+                quote: 10000,
             },
             {
                 title: "long exact input rounded to benefit pool",
@@ -145,18 +154,22 @@ describe("PoolLibrary swap", () => {
                 quote: 4999,
             },
             {
-                title: "long revert when output is too small",
+                title: "long. output is too small",
                 isBaseToQuote: false,
                 isExactInput: true,
                 amount: 1,
-                revertedWith: "PL_SD: output is zero",
+                oppositeAmount: 0,
+                base: 10000,
+                quote: 10001,
             },
             {
-                title: "short revert when output is too small",
+                title: "short. output is too small",
                 isBaseToQuote: true,
                 isExactInput: true,
                 amount: 1,
-                revertedWith: "PL_SD: output is zero",
+                oppositeAmount: 0,
+                base: 10001,
+                quote: 10000,
             },
             {
                 title: "long revert when insufficient base liquidity",

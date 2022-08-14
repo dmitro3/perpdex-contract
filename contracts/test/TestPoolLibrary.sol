@@ -26,7 +26,7 @@ contract TestPoolLibrary {
         uint256 quote,
         PoolLibrary.SwapParams memory params
     ) external pure returns (uint256) {
-        return PoolLibrary.previewSwap(base, quote, params, false);
+        return PoolLibrary.previewSwap(base, quote, params);
     }
 
     function maxSwap(

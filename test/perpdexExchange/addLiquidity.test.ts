@@ -410,7 +410,7 @@ describe("PerpdexExchange addLiquidity", () => {
                         )
 
                     const accountInfo = await exchange.accountInfos(alice.address)
-                    expect(accountInfo.collateralBalance).to.eq(test.afterCollateralBalance)
+                    expect(accountInfo.vaultInfo.collateralBalance).to.eq(test.afterCollateralBalance)
 
                     const takerInfo = await exchange.getTakerInfo(alice.address, market.address)
                     expect(takerInfo.baseBalanceShare).to.eq(test.afterTakerInfo.baseBalanceShare)

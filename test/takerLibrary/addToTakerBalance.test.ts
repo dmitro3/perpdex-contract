@@ -2,7 +2,6 @@ import { expect } from "chai"
 import { waffle } from "hardhat"
 import { TestTakerLibrary } from "../../typechain"
 import { createTakerLibraryFixture } from "./fixtures"
-import { BigNumberish } from "ethers"
 import { MockContract } from "ethereum-waffle"
 
 describe("TakerLibrary addToTakerBalance", () => {
@@ -48,7 +47,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: -1,
                 quoteFee: 0,
                 realizedPnl: 0,
-                revertedWith: void 0,
             },
             {
                 title: "short",
@@ -61,7 +59,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: 1,
                 quoteFee: 0,
                 realizedPnl: 0,
-                revertedWith: void 0,
             },
             {
                 title: "close long all",
@@ -74,7 +71,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: 15,
                 quoteFee: 0,
                 realizedPnl: 12,
-                revertedWith: void 0,
             },
             {
                 title: "close short all",
@@ -87,7 +83,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: -15,
                 quoteFee: 0,
                 realizedPnl: -12,
-                revertedWith: void 0,
             },
             {
                 title: "close long partial",
@@ -100,7 +95,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: 15,
                 quoteFee: 0,
                 realizedPnl: 12,
-                revertedWith: void 0,
             },
             {
                 title: "close short partial",
@@ -113,7 +107,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: -15,
                 quoteFee: 0,
                 realizedPnl: -12,
-                revertedWith: void 0,
             },
             {
                 title: "flip long",
@@ -126,7 +119,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: 14,
                 quoteFee: 0,
                 realizedPnl: -90,
-                revertedWith: void 0,
             },
             {
                 title: "flip short",
@@ -139,7 +131,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: -14,
                 quoteFee: 0,
                 realizedPnl: 90,
-                revertedWith: void 0,
             },
             {
                 title: "fee",
@@ -152,7 +143,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: -1,
                 quoteFee: 10,
                 realizedPnl: 10,
-                revertedWith: void 0,
             },
             {
                 title: "invalid 1",
@@ -164,7 +154,7 @@ describe("TakerLibrary addToTakerBalance", () => {
                 baseShare: 1,
                 quoteBalance: 1,
                 quoteFee: 0,
-                revertedWith: "TL_ATTB: invalid input",
+                ignored: true,
             },
             {
                 title: "invalid 2",
@@ -176,7 +166,8 @@ describe("TakerLibrary addToTakerBalance", () => {
                 baseShare: -1,
                 quoteBalance: -1,
                 quoteFee: 0,
-                revertedWith: "TL_ATTB: invalid input",
+                realizedPnl: 0,
+                ignored: true,
             },
             {
                 title: "invalid 3",
@@ -188,7 +179,8 @@ describe("TakerLibrary addToTakerBalance", () => {
                 baseShare: 1,
                 quoteBalance: 0,
                 quoteFee: 0,
-                revertedWith: "TL_ATTB: invalid input",
+                realizedPnl: 0,
+                ignored: true,
             },
             {
                 title: "invalid 4",
@@ -200,7 +192,8 @@ describe("TakerLibrary addToTakerBalance", () => {
                 baseShare: 0,
                 quoteBalance: 1,
                 quoteFee: 0,
-                revertedWith: "TL_ATTB: invalid input",
+                realizedPnl: 0,
+                ignored: true,
             },
             {
                 title: "zero",
@@ -213,7 +206,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                 quoteBalance: 0,
                 quoteFee: 10,
                 realizedPnl: 10,
-                revertedWith: void 0,
             },
         ].forEach(test => {
             it(test.title, async () => {
@@ -224,10 +216,25 @@ describe("TakerLibrary addToTakerBalance", () => {
                     library.addToTakerBalance(market.address, test.baseShare, test.quoteBalance, test.quoteFee, 1),
                 )
 
-                if (test.revertedWith === void 0) {
+                if (test.ignored) {
+                    await res.to.emit(library, "AddToTakerBalanceResult").withArgs(0)
+
+                    const vault = (await library.accountInfo()).vaultInfo
+                    expect(vault.collateralBalance).to.eq(test.collateralBalance)
+
+                    const takerInfo = await library.getTakerInfo(market.address)
+                    expect(takerInfo.baseBalanceShare).to.eq(test.takerInfo.baseBalanceShare)
+                    expect(takerInfo.quoteBalance).to.eq(test.takerInfo.quoteBalance)
+
+                    // constraints
+                    expect(
+                        (takerInfo.baseBalanceShare.eq(0) && takerInfo.quoteBalance.eq(0)) ||
+                            takerInfo.baseBalanceShare.mul(takerInfo.quoteBalance).lt(0),
+                    ).to.be.true
+                } else {
                     await res.to.emit(library, "AddToTakerBalanceResult").withArgs(test.realizedPnl)
 
-                    const vault = await library.accountInfo()
+                    const vault = (await library.accountInfo()).vaultInfo
                     expect(vault.collateralBalance).to.eq(test.collateralBalance + test.realizedPnl)
 
                     const takerInfo = await library.getTakerInfo(market.address)
@@ -241,8 +248,6 @@ describe("TakerLibrary addToTakerBalance", () => {
                         (takerInfo.baseBalanceShare.eq(0) && takerInfo.quoteBalance.eq(0)) ||
                             takerInfo.baseBalanceShare.mul(takerInfo.quoteBalance).lt(0),
                     ).to.be.true
-                } else {
-                    await res.to.revertedWith(test.revertedWith)
                 }
             })
         })
