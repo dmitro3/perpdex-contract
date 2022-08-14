@@ -109,6 +109,7 @@ library OrderBookLibrary {
 
         executedBase = info.orderInfos[key].base;
         // rounding error occurs, but it is negligible.
+
         executedQuote = PRBMath.mulDiv(
             _getQuote(info, key),
             orderBookInfo.executionInfos[executionId].baseBalancePerShareX96,
@@ -275,7 +276,6 @@ library OrderBookLibrary {
         bool isBaseToQuote;
         bool isExactInput;
         uint256 amount;
-        bool noRevert;
         uint256 baseBalancePerShareX96;
     }
 

@@ -25,7 +25,6 @@ contract TestOrderBookLibrary {
                 isBaseToQuote: isBaseToQuote,
                 isExactInput: isExactInput,
                 amount: amount,
-                noRevert: false,
                 baseBalancePerShareX96: baseBalancePerShareX96
             }),
             poolMaxSwap

@@ -96,7 +96,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false,
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
@@ -109,7 +108,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false,
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap,
@@ -271,7 +269,6 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                     isBaseToQuote: isBaseToQuote,
                     isExactInput: isExactInput,
                     amount: amount,
-                    noRevert: false,
                     baseBalancePerShareX96: poolInfo.baseBalancePerShareX96
                 }),
                 poolMaxSwap
@@ -285,8 +282,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
                 isExactInput: isExactInput,
                 amount: response.amountPool,
                 feeRatio: poolFeeRatio
-            }),
-            false
+            })
         );
         bool isOppositeBase = isBaseToQuote != isExactInput;
         if (isOppositeBase) {

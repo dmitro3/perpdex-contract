@@ -75,7 +75,7 @@ library PoolLibrary {
         internal
         returns (uint256 oppositeAmount)
     {
-        oppositeAmount = previewSwap(poolInfo.base, poolInfo.quote, params, false);
+        oppositeAmount = previewSwap(poolInfo.base, poolInfo.quote, params);
         (poolInfo.base, poolInfo.quote) = calcPoolAfter(
             params.isBaseToQuote,
             params.isExactInput,
@@ -186,8 +186,7 @@ library PoolLibrary {
     function previewSwap(
         uint256 base,
         uint256 quote,
-        SwapParams memory params,
-        bool noRevert
+        SwapParams memory params
     ) internal pure returns (uint256 output) {
         uint24 oneSubFeeRatio = PerpMath.subRatio(1e6, params.feeRatio);
 
@@ -209,9 +208,6 @@ library PoolLibrary {
                 output = FullMath.mulDivRoundingUp(quote, params.amount, base.sub(params.amount));
             }
             output = output.divRatioRoundingUp(oneSubFeeRatio);
-        }
-        if (!noRevert) {
-            require(output > 0, "PL_SD: output is zero");
         }
     }
 
@@ -255,8 +251,7 @@ library PoolLibrary {
             output = previewSwap(
                 base,
                 quote,
-                SwapParams({ isBaseToQuote: isBaseToQuote, isExactInput: true, feeRatio: feeRatio, amount: output }),
-                true
+                SwapParams({ isBaseToQuote: isBaseToQuote, isExactInput: true, feeRatio: feeRatio, amount: output })
             );
         }
     }
