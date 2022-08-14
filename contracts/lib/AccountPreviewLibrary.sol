@@ -31,8 +31,10 @@ library AccountPreviewLibrary {
         int256 quoteFee
     ) internal pure returns (PerpdexStructs.TakerInfo memory resultTakerInfo, int256 realizedPnl) {
         if (baseShare != 0 || quoteBalance != 0) {
-            require(baseShare.sign() * quoteBalance.sign() == -1, "TL_ATTB: invalid input");
-
+            if (baseShare.sign() * quoteBalance.sign() != -1) {
+                // ignore invalid input
+                return (takerInfo, 0);
+            }
             if (takerInfo.baseBalanceShare.sign() * baseShare.sign() == -1) {
                 uint256 baseAbs = baseShare.abs();
                 uint256 takerBaseAbs = takerInfo.baseBalanceShare.abs();
@@ -50,11 +52,13 @@ library AccountPreviewLibrary {
 
         int256 newBaseBalanceShare = takerInfo.baseBalanceShare.add(baseShare);
         int256 newQuoteBalance = takerInfo.quoteBalance.add(quoteBalance).add(quoteFee).sub(realizedPnl);
-        require(
-            (newBaseBalanceShare == 0 && newQuoteBalance == 0) ||
-                newBaseBalanceShare.sign() * newQuoteBalance.sign() == -1,
-            "TL_ATTB: never occur"
-        );
+        if (
+            !((newBaseBalanceShare == 0 && newQuoteBalance == 0) ||
+                newBaseBalanceShare.sign() * newQuoteBalance.sign() == -1)
+        ) {
+            // never occur. ignore
+            return (takerInfo, 0);
+        }
 
         resultTakerInfo.baseBalanceShare = newBaseBalanceShare;
         resultTakerInfo.quoteBalance = newQuoteBalance;
