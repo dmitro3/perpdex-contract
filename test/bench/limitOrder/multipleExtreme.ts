@@ -192,6 +192,6 @@ describe("gas benchmark limit order", () => {
                     deadline: deadline,
                 })
             }
-        })
+        }).timeout(5 * 60 * 1000)
     })
 })
