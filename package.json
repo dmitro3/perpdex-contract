@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "clean": "rm -rf typechain && rm -rf artifacts && rm -rf cache",
-    "test": "hardhat test",
+    "test": "hardhat test --grep '^(?!.*benchmark)'",
     "parallel-test": "hardhat test --parallel",
     "build": "hardhat compile",
     "build-zksync": "hardhat compile --network zksync2_testnet",
