@@ -3,7 +3,6 @@ import { TestPerpdexMarket } from "../../typechain"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
 import { BigNumber, Wallet } from "ethers"
-import _ from "lodash"
 
 interface PerpdexMarketFixture {
     perpdexMarket: TestPerpdexMarket
@@ -20,7 +19,7 @@ interface Params {
 }
 
 export function createPerpdexMarketFixture(params: Params = {}): (wallets, provider) => Promise<PerpdexMarketFixture> {
-    params = _.extend({ skipConfig: false }, params)
+    params = { skipConfig: false, ...params }
     return async ([owner, alice, bob, exchange], provider): Promise<PerpdexMarketFixture> => {
         const priceFeed = await waffle.deployMockContract(owner, IPerpdexPriceFeedJson.abi)
         await priceFeed.mock.getPrice.returns(BigNumber.from(10).pow(18))
@@ -42,7 +41,11 @@ export function createPerpdexMarketFixture(params: Params = {}): (wallets, provi
         )) as TestPerpdexMarket
 
         if (!params.skipConfig) {
-            await perpdexMarket.connect(owner).setPoolFeeRatio(0)
+            await perpdexMarket.connect(owner).setPoolFeeConfig({
+                fixedFeeRatio: 0,
+                atrFeeRatio: 0,
+                atrEmaBlocks: 1,
+            })
             await perpdexMarket.connect(owner).setFundingMaxPremiumRatio(0)
         }
 

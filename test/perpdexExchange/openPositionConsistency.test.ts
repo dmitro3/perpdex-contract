@@ -68,7 +68,11 @@ describe("PerpdexExchange trade consistency", () => {
                             let amount
 
                             beforeEach(async () => {
-                                await market.connect(owner).setPoolFeeRatio(fee)
+                                await market.connect(owner).setPoolFeeConfig({
+                                    fixedFeeRatio: fee,
+                                    atrFeeRatio: 0,
+                                    atrEmaBlocks: 1,
+                                })
                                 await exchange.connect(owner).setProtocolFeeRatio(protocolFee)
 
                                 await exchange.setAccountInfo(

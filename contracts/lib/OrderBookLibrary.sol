@@ -115,6 +115,12 @@ library OrderBookLibrary {
         );
     }
 
+    function getBestPriceX96(MarketStructs.OrderBookSideInfo storage info) external view returns (uint256) {
+        if (info.tree.root == 0) return 0;
+        uint40 key = info.tree.first();
+        return userDataToPriceX96(info.tree.nodes[key].userData);
+    }
+
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
         uint40 root = info.tree.root;
         while (key != 0 && key != root) {
