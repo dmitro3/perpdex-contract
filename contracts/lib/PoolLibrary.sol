@@ -182,6 +182,7 @@ library PoolLibrary {
         );
     }
 
+    // subtract fee from input before swap
     function previewSwap(
         uint256 base,
         uint256 quote,
@@ -219,6 +220,10 @@ library PoolLibrary {
     }
 
     // must not revert
+    // Trade until the trade price including fee (dy/dx) reaches priceBoundX96
+    // not pool price (y/x)
+    // long: trade_price = pool_price / (1 - fee)
+    // short: trade_price = pool_price * (1 - fee)
     function maxSwap(
         uint256 base,
         uint256 quote,
@@ -231,7 +236,7 @@ library PoolLibrary {
         uint256 k = base.mul(quote);
 
         if (isBaseToQuote) {
-            uint256 kDivP = PRBMath.mulDiv(k, FixedPoint96.Q96, priceBoundX96);
+            uint256 kDivP = PRBMath.mulDiv(k, FixedPoint96.Q96, priceBoundX96).mulRatio(oneSubFeeRatio);
             uint256 baseSqr = base.mul(base);
             if (kDivP <= baseSqr) return 0;
             uint256 cNeg = kDivP.sub(baseSqr);
@@ -239,7 +244,7 @@ library PoolLibrary {
             output = _solveQuadratic(b.divRatio(oneSubFeeRatio), cNeg.divRatio(oneSubFeeRatio));
         } else {
             // https://www.wolframalpha.com/input?i=%28x+%2B+a%29+*+%28x+%2B+a+*+%281+-+f%29%29+%3D+kp+solve+a
-            uint256 kp = PRBMath.mulDiv(k, priceBoundX96, FixedPoint96.Q96);
+            uint256 kp = PRBMath.mulDiv(k, priceBoundX96, FixedPoint96.Q96).mulRatio(oneSubFeeRatio);
             uint256 quoteSqr = quote.mul(quote);
             if (kp <= quoteSqr) return 0;
             uint256 cNeg = kp.sub(quoteSqr);

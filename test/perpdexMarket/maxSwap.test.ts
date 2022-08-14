@@ -51,28 +51,28 @@ describe("PerpdexMarket maxSwap", () => {
                 isBaseToQuote: false,
                 isExactInput: true,
                 isLiquidation: false,
-                amount: 490,
+                amount: 437,
             },
             {
                 title: "short exact input",
                 isBaseToQuote: true,
                 isExactInput: true,
                 isLiquidation: false,
-                amount: 543,
+                amount: 490,
             },
             {
                 title: "long exact output",
                 isBaseToQuote: false,
                 isExactInput: false,
                 isLiquidation: false,
-                amount: 462,
+                amount: 414,
             },
             {
                 title: "short exact output",
                 isBaseToQuote: true,
                 isExactInput: false,
                 isLiquidation: false,
-                amount: 509,
+                amount: 462,
             },
         ].forEach(test => {
             it(test.title, async () => {

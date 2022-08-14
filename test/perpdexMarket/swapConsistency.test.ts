@@ -16,6 +16,8 @@ describe("PerpdexMarket swap consistency", () => {
     let priceFeed: MockContract
     const initialPoolAmount = BigNumber.from(10).pow(18)
 
+    const Q96 = BigNumber.from(2).pow(96)
+
     beforeEach(async () => {
         fixture = await loadFixture(createPerpdexMarketFixture())
         market = fixture.perpdexMarket
@@ -117,8 +119,12 @@ describe("PerpdexMarket swap consistency", () => {
                             const priceRange = priceBefore.mul(priceLimitRatio).div(1e6)
                             const priceBound = isBaseToQuote ? priceBefore.sub(priceRange) : priceBefore.add(priceRange)
                             const priceBoundError = priceBound.div(1e15)
-                            expect(priceAfter).to.be.gt(priceBound.sub(priceBoundError))
-                            expect(priceAfter).to.be.lt(priceBound.add(priceBoundError))
+
+                            const tradePrice = isBaseToQuote
+                                ? priceAfter.mul(1e6 - fee).div(1e6)
+                                : priceAfter.mul(1e6).div(1e6 - fee)
+                            expect(tradePrice).to.be.gt(priceBound.sub(priceBoundError))
+                            expect(tradePrice).to.be.lt(priceBound.add(priceBoundError))
                         })
                     })
                 })

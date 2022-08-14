@@ -283,7 +283,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
             PoolLibrary.SwapParams({
                 isBaseToQuote: isBaseToQuote,
                 isExactInput: isExactInput,
-                amount: amount,
+                amount: response.amountPool,
                 feeRatio: poolFeeRatio
             }),
             false
