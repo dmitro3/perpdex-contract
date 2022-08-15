@@ -19,7 +19,13 @@ describe("gas benchmark amm only", () => {
     const deadline = Q96
 
     beforeEach(async () => {
-        fixture = await loadFixture(createPerpdexExchangeFixture())
+        fixture = await loadFixture(
+            createPerpdexExchangeFixture({
+                marketCount: 16,
+                isMarketAllowed: true,
+                initPool: true,
+            }),
+        )
         exchange = fixture.perpdexExchange
         market = fixture.perpdexMarket
         owner = fixture.owner
@@ -34,9 +40,6 @@ describe("gas benchmark amm only", () => {
             smoothEmaTime: 1,
         })
 
-        await market.connect(owner).setPoolFeeRatio(0)
-        await market.connect(owner).setFundingMaxPremiumRatio(0)
-        await exchange.connect(owner).setIsMarketAllowed(market.address, true)
         await market.connect(owner).setPriceLimitConfig({
             normalOrderRatio: 5e4,
             liquidationRatio: 10e4,
@@ -55,15 +58,6 @@ describe("gas benchmark amm only", () => {
             },
             [],
         )
-
-        await exchange.connect(owner).addLiquidity({
-            market: market.address,
-            base: 10000,
-            quote: 10000,
-            minBase: 0,
-            minQuote: 0,
-            deadline: deadline,
-        })
 
         await exchange.setAccountInfo(
             alice.address,

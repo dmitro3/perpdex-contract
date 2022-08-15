@@ -91,7 +91,7 @@ jobs:
           ls -la typechain
           ls -la deps/perpdex-oracle-contract/typechain
 
-      - run: find test/bench -type f | xargs -n 1 npx hardhat test
+      - run: npm run bench
         env:
           # to solve problem of memory leak https://stackoverflow.com/a/59572966
           NODE_OPTIONS: "--max-old-space-size=4096"

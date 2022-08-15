@@ -42,7 +42,8 @@
     "slither": "ts-node --files scripts/slither.ts",
     "getPairCodeHash": "ts-node --files scripts/getPairCodeHash.ts",
     "coverage": "hardhat coverage",
-    "code-lines": "npx cloc --exclude-dir=test contracts"
+    "code-lines": "npx cloc --exclude-dir=test contracts",
+    "bench": "find test/bench -type f | xargs -n 1 npx hardhat test"
   },
   "devDependencies": {
     "@chainlink/contracts": "0.1.7",
