@@ -14,7 +14,7 @@ describe("PerpdexMarket config", () => {
     let exchange: Wallet
 
     beforeEach(async () => {
-        fixture = await loadFixture(createPerpdexMarketFixture())
+        fixture = await loadFixture(createPerpdexMarketFixture({ skipConfig: true }))
         market = fixture.perpdexMarket
         owner = fixture.owner
         alice = fixture.alice

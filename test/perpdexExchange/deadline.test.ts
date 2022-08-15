@@ -16,14 +16,12 @@ describe("PerpdexExchange deadline", () => {
     let nextBlockTimestamp: number
 
     beforeEach(async () => {
-        fixture = await loadFixture(createPerpdexExchangeFixture())
+        fixture = await loadFixture(createPerpdexExchangeFixture({ isMarketAllowed: true }))
         exchange = fixture.perpdexExchange
         market = fixture.perpdexMarket
         owner = fixture.owner
         alice = fixture.alice
         nextBlockTimestamp = (await getTimestamp()) + 1000
-
-        await exchange.connect(owner).setIsMarketAllowed(market.address, true)
 
         await exchange.setAccountInfo(
             alice.address,

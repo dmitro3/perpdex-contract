@@ -24,8 +24,6 @@ describe("PerpdexMarket removeLiquidity", () => {
         exchange = fixture.exchange
         priceFeed = fixture.priceFeed
 
-        await market.connect(owner).setPoolFeeRatio(0)
-        await market.connect(owner).setFundingMaxPremiumRatio(0)
         await priceFeed.mock.getPrice.returns(BigNumber.from(10).pow(18))
         await priceFeed.mock.decimals.returns(18)
     })

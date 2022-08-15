@@ -20,7 +20,7 @@ describe("PerpdexExchange trade consistency", () => {
     const maxUint = BigNumber.from(2).pow(256).sub(1)
 
     beforeEach(async () => {
-        fixture = await loadFixture(createPerpdexExchangeFixture())
+        fixture = await loadFixture(createPerpdexExchangeFixture({ isMarketAllowed: true }))
         exchange = fixture.perpdexExchange
         market = fixture.perpdexMarket
         owner = fixture.owner
@@ -34,9 +34,6 @@ describe("PerpdexExchange trade consistency", () => {
             smoothEmaTime: 1,
         })
 
-        await market.connect(owner).setPoolFeeRatio(0)
-        await market.connect(owner).setFundingMaxPremiumRatio(0)
-        await exchange.connect(owner).setIsMarketAllowed(market.address, true)
         await market.connect(owner).setPriceLimitConfig({
             normalOrderRatio: 1e5,
             liquidationRatio: 2e5,

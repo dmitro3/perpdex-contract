@@ -26,8 +26,6 @@ describe("PerpdexMarket swap consistency", () => {
         exchange = fixture.exchange
         priceFeed = fixture.priceFeed
 
-        await market.connect(owner).setPoolFeeRatio(0)
-        await market.connect(owner).setFundingMaxPremiumRatio(0)
         await market.connect(owner).setPriceLimitConfig({
             normalOrderRatio: 1e5,
             liquidationRatio: 2e5,
