@@ -6,7 +6,6 @@ import { PerpMath } from "./PerpMath.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
@@ -108,7 +107,7 @@ library AccountLibrary {
 
         if (response.openPositionShare != 0) {
             uint256 sharePriceX96 = IPerpdexMarketMinimum(market).getShareMarkPriceX96();
-            response.openPositionNotional = PRBMath.mulDiv(response.openPositionShare, sharePriceX96, FixedPoint96.Q96);
+            response.openPositionNotional = Math.mulDiv(response.openPositionShare, sharePriceX96, FixedPoint96.Q96);
 
             if (response.baseShare != 0) {
                 response.positionNotional = response.baseShare.mulDiv(sharePriceX96.toInt256(), FixedPoint96.Q96);

@@ -1,11 +1,5 @@
 import { ethers, waffle } from "hardhat"
-import {
-    TestPerpdexExchange,
-    TestPerpdexMarket,
-    TestERC20,
-    AccountLibrary,
-    MakerOrderBookLibrary,
-} from "../../typechain"
+import { TestPerpdexExchange, TestPerpdexMarket, TestERC20 } from "../../typechain"
 import { BigNumber, Wallet } from "ethers"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
@@ -22,8 +16,8 @@ export interface PerpdexExchangeFixture {
     carol: Wallet
     priceFeed: MockContract
     priceFeeds: MockContract[]
-    accountLibrary: AccountLibrary
-    makerOrderBookLibrary: MakerOrderBookLibrary
+    accountLibrary: any
+    makerOrderBookLibrary: any
     vaultLibrary: any
 }
 

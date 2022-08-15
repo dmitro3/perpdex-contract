@@ -8,9 +8,7 @@ import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMat
 import { PerpMath } from "./PerpMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { MarketStructs } from "./MarketStructs.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
-import { FullMath } from "./FullMath.sol";
 import {
     BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
 } from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
@@ -110,7 +108,7 @@ library OrderBookLibrary {
         executedBase = info.orderInfos[key].base;
         // rounding error occurs, but it is negligible.
 
-        executedQuote = PRBMath.mulDiv(
+        executedQuote = Math.mulDiv(
             _getQuote(info, key),
             orderBookInfo.executionInfos[executionId].baseBalancePerShareX96,
             FixedPoint96.Q96
@@ -216,7 +214,7 @@ library OrderBookLibrary {
 
     function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
         uint256 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
-        return PRBMath.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
+        return Math.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
     }
 
     function swap(
@@ -305,7 +303,7 @@ library OrderBookLibrary {
         while (key != 0) {
             PreviewSwapLocalVars memory vars;
             vars.priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
-            vars.sharePriceX96 = PRBMath.mulDiv(vars.priceX96, params.baseBalancePerShareX96, FixedPoint96.Q96);
+            vars.sharePriceX96 = Math.mulDiv(vars.priceX96, params.baseBalancePerShareX96, FixedPoint96.Q96);
             vars.amountPool = maxSwapArg(params.isBaseToQuote, params.isExactInput, vars.sharePriceX96);
 
             // key - right is more gas efficient than left + key
@@ -318,7 +316,7 @@ library OrderBookLibrary {
                 (
                     isBase
                         ? vars.leftBaseSum
-                        : PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
+                        : Math.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
                 ) + vars.amountPool;
             if (params.amount <= rangeLeft) {
                 if (vars.left == 0) {
@@ -335,18 +333,18 @@ library OrderBookLibrary {
                 (
                     isBase
                         ? vars.rightBaseSum
-                        : PRBMath.mulDiv(vars.rightQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
+                        : Math.mulDiv(vars.rightQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
                 ) + vars.amountPool;
             if (params.amount < rangeRight) {
                 response.amountPool = vars.amountPool;
                 response.baseFull = vars.leftBaseSum;
-                response.quoteFull = PRBMath.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
+                response.quoteFull = Math.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
                 if (isBase) {
                     response.basePartial = params.amount - rangeLeft; // < info.orderInfos[key].base
-                    response.quotePartial = PRBMath.mulDiv(response.basePartial, vars.sharePriceX96, FixedPoint96.Q96);
+                    response.quotePartial = Math.mulDiv(response.basePartial, vars.sharePriceX96, FixedPoint96.Q96);
                 } else {
                     response.quotePartial = params.amount - rangeLeft;
-                    response.basePartial = PRBMath.mulDiv(response.quotePartial, FixedPoint96.Q96, vars.sharePriceX96);
+                    response.basePartial = Math.mulDiv(response.quotePartial, FixedPoint96.Q96, vars.sharePriceX96);
                     // round to fit order size
                     response.basePartial = Math.min(response.basePartial, info.orderInfos[key].base - 1);
                 }
@@ -366,7 +364,7 @@ library OrderBookLibrary {
         }
 
         response.baseFull = baseSum;
-        response.quoteFull = PRBMath.mulDiv(quoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
+        response.quoteFull = Math.mulDiv(quoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
         response.amountPool = params.amount - (isBase ? response.baseFull : response.quoteFull);
     }
 
@@ -377,7 +375,7 @@ library OrderBookLibrary {
         uint256 sharePriceBoundX96,
         uint256 baseBalancePerShareX96
     ) public view returns (uint256 amount) {
-        uint256 priceBoundX96 = PRBMath.mulDiv(sharePriceBoundX96, FixedPoint96.Q96, baseBalancePerShareX96);
+        uint256 priceBoundX96 = Math.mulDiv(sharePriceBoundX96, FixedPoint96.Q96, baseBalancePerShareX96);
         bool isBid = isBaseToQuote;
         bool isBase = isBaseToQuote == isExactInput;
         uint40 key = info.tree.root;
@@ -399,7 +397,7 @@ library OrderBookLibrary {
 
         if (!isBase) {
             // share * price * baseBalancePerShareX96 = share * share_price
-            amount = PRBMath.mulDiv(amount, baseBalancePerShareX96, FixedPoint96.Q96);
+            amount = Math.mulDiv(amount, baseBalancePerShareX96, FixedPoint96.Q96);
         }
     }
 

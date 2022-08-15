@@ -4,7 +4,6 @@ pragma abicoder v2;
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { PerpMath } from "./PerpMath.sol";
 import { MarketStructs } from "./MarketStructs.sol";
 
@@ -42,8 +41,8 @@ library PriceLimitLibrary {
         } else {
             uint32 emaSec = config.emaSec;
             uint256 denominator = elapsed.add(emaSec);
-            updated.emaPrice = PRBMath.mulDiv(priceLimitInfo.emaPrice, emaSec, denominator).add(
-                PRBMath.mulDiv(price, elapsed, denominator)
+            updated.emaPrice = Math.mulDiv(priceLimitInfo.emaPrice, emaSec, denominator).add(
+                Math.mulDiv(price, elapsed, denominator)
             );
         }
 

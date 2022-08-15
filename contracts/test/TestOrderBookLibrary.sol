@@ -3,7 +3,7 @@ pragma solidity >=0.7.6;
 pragma abicoder v2;
 
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { PoolLibrary } from "../lib/PoolLibrary.sol";
 import { OrderBookLibrary } from "../lib/OrderBookLibrary.sol";
 import { MarketStructs } from "../lib/MarketStructs.sol";
@@ -39,11 +39,11 @@ contract TestOrderBookLibrary {
         uint256 base;
         if (isBaseToQuote) {
             if (priceX96 < FixedPoint96.Q96) {
-                base = PRBMath.mulDiv(100, FixedPoint96.Q96 - priceX96, FixedPoint96.Q96);
+                base = Math.mulDiv(100, FixedPoint96.Q96 - priceX96, FixedPoint96.Q96);
             }
         } else {
             if (priceX96 > FixedPoint96.Q96) {
-                base = PRBMath.mulDiv(100, priceX96 - FixedPoint96.Q96, FixedPoint96.Q96);
+                base = Math.mulDiv(100, priceX96 - FixedPoint96.Q96, FixedPoint96.Q96);
             }
         }
         bool isBase = isBaseToQuote == isExactInput;

@@ -3,11 +3,10 @@ pragma solidity >=0.7.6;
 pragma abicoder v2;
 
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
-import { FullMath } from "./FullMath.sol";
 
 library PerpMath {
     using SafeCast for int256;
@@ -15,15 +14,15 @@ library PerpMath {
     using SafeMath for uint256;
 
     function formatSqrtPriceX96ToPriceX96(uint160 sqrtPriceX96) internal pure returns (uint256) {
-        return PRBMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
+        return Math.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
     }
 
     function formatX10_18ToX96(uint256 valueX10_18) internal pure returns (uint256) {
-        return PRBMath.mulDiv(valueX10_18, FixedPoint96.Q96, 1 ether);
+        return Math.mulDiv(valueX10_18, FixedPoint96.Q96, 1 ether);
     }
 
     function formatX96ToX10_18(uint256 valueX96) internal pure returns (uint256) {
-        return PRBMath.mulDiv(valueX96, 1 ether, FixedPoint96.Q96);
+        return Math.mulDiv(valueX96, 1 ether, FixedPoint96.Q96);
     }
 
     function max(int256 a, int256 b) internal pure returns (int256) {
@@ -63,18 +62,18 @@ library PerpMath {
     }
 
     function mulRatio(uint256 value, uint24 ratio) internal pure returns (uint256) {
-        return PRBMath.mulDiv(value, ratio, 1e6);
+        return Math.mulDiv(value, ratio, 1e6);
     }
 
     function divRatio(uint256 value, uint24 ratio) internal pure returns (uint256) {
-        return PRBMath.mulDiv(value, 1e6, ratio);
+        return Math.mulDiv(value, 1e6, ratio);
     }
 
     function divRatioRoundingUp(uint256 value, uint24 ratio) internal pure returns (uint256) {
-        return FullMath.mulDivRoundingUp(value, 1e6, ratio);
+        return Math.mulDiv(value, 1e6, ratio, Math.Rounding.Up);
     }
 
-    /// @param denominator cannot be 0 and is checked in PRBMath.mulDiv()
+    /// @param denominator cannot be 0 and is checked in Math.mulDiv()
     function mulDiv(
         int256 a,
         int256 b,
@@ -84,7 +83,7 @@ library PerpMath {
         uint256 unsignedB = b < 0 ? uint256(neg256(b)) : uint256(b);
         bool negative = ((a < 0 && b > 0) || (a > 0 && b < 0)) ? true : false;
 
-        uint256 unsignedResult = PRBMath.mulDiv(unsignedA, unsignedB, denominator);
+        uint256 unsignedResult = Math.mulDiv(unsignedA, unsignedB, denominator);
 
         result = negative ? neg256(unsignedResult) : SafeCast.toInt256(unsignedResult);
 

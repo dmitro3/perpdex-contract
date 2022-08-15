@@ -1,5 +1,5 @@
 import { ethers, waffle } from "hardhat"
-import { TestPerpdexMarket, OrderBookLibrary } from "../../typechain"
+import { TestPerpdexMarket } from "../../typechain"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
 import { BigNumber, Wallet } from "ethers"
@@ -12,7 +12,7 @@ interface PerpdexMarketFixture {
     alice: Wallet
     bob: Wallet
     exchange: Wallet
-    orderBookLibrary: OrderBookLibrary
+    orderBookLibrary: any
 }
 
 interface Params {

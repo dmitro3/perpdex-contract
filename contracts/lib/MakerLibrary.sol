@@ -2,8 +2,8 @@
 pragma solidity >=0.7.6;
 pragma abicoder v2;
 
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
 import { PerpMath } from "./PerpMath.sol";
@@ -108,11 +108,11 @@ library MakerLibrary {
         uint256 cumAfter
     ) private pure returns (uint256) {
         uint256 liquidityAfter = liquidityBefore.add(addedLiquidity);
-        cumAfter = cumAfter.add(PRBMath.mulDiv(addedToken, FixedPoint96.Q96, addedLiquidity));
+        cumAfter = cumAfter.add(Math.mulDiv(addedToken, FixedPoint96.Q96, addedLiquidity));
 
         return
-            PRBMath.mulDiv(cumBefore, liquidityBefore, liquidityAfter).add(
-                PRBMath.mulDiv(cumAfter, addedLiquidity, liquidityAfter)
+            Math.mulDiv(cumBefore, liquidityBefore, liquidityAfter).add(
+                Math.mulDiv(cumAfter, addedLiquidity, liquidityAfter)
             );
     }
 

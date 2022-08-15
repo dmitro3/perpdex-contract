@@ -8,9 +8,7 @@ import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMat
 import { PerpMath } from "./PerpMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { MarketStructs } from "./MarketStructs.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
-import { FullMath } from "./FullMath.sol";
 
 library PoolLibrary {
     using PerpMath for int256;
@@ -50,21 +48,21 @@ library PoolLibrary {
 
         if (fundingRateX96 > 0) {
             uint256 poolQuote = poolInfo.quote;
-            uint256 deleveratedQuote = PRBMath.mulDiv(poolQuote, frAbs, FixedPoint96.Q96);
+            uint256 deleveratedQuote = Math.mulDiv(poolQuote, frAbs, FixedPoint96.Q96);
             poolInfo.quote = poolQuote.sub(deleveratedQuote);
             poolInfo.cumQuotePerLiquidityX96 = poolInfo.cumQuotePerLiquidityX96.add(
-                PRBMath.mulDiv(deleveratedQuote, FixedPoint96.Q96, poolInfo.totalLiquidity)
+                Math.mulDiv(deleveratedQuote, FixedPoint96.Q96, poolInfo.totalLiquidity)
             );
         } else {
             uint256 poolBase = poolInfo.base;
-            uint256 deleveratedBase = PRBMath.mulDiv(poolBase, frAbs, FixedPoint96.Q96.add(frAbs));
+            uint256 deleveratedBase = Math.mulDiv(poolBase, frAbs, FixedPoint96.Q96.add(frAbs));
             poolInfo.base = poolBase.sub(deleveratedBase);
             poolInfo.cumBasePerLiquidityX96 = poolInfo.cumBasePerLiquidityX96.add(
-                PRBMath.mulDiv(deleveratedBase, FixedPoint96.Q96, poolInfo.totalLiquidity)
+                Math.mulDiv(deleveratedBase, FixedPoint96.Q96, poolInfo.totalLiquidity)
             );
         }
 
-        poolInfo.baseBalancePerShareX96 = PRBMath.mulDiv(
+        poolInfo.baseBalancePerShareX96 = Math.mulDiv(
             poolInfo.baseBalancePerShareX96,
             FixedPoint96.Q96.toInt256().sub(fundingRateX96).toUint256(),
             FixedPoint96.Q96
@@ -138,11 +136,11 @@ library PoolLibrary {
         uint256 poolBase = poolInfo.base;
         uint256 poolQuote = poolInfo.quote;
 
-        uint256 base = Math.min(params.base, PRBMath.mulDiv(params.quote, poolBase, poolQuote));
-        uint256 quote = Math.min(params.quote, PRBMath.mulDiv(params.base, poolQuote, poolBase));
+        uint256 base = Math.min(params.base, Math.mulDiv(params.quote, poolBase, poolQuote));
+        uint256 quote = Math.min(params.quote, Math.mulDiv(params.base, poolQuote, poolBase));
         liquidity = Math.min(
-            PRBMath.mulDiv(base, poolTotalLiquidity, poolBase),
-            PRBMath.mulDiv(quote, poolTotalLiquidity, poolQuote)
+            Math.mulDiv(base, poolTotalLiquidity, poolBase),
+            Math.mulDiv(quote, poolTotalLiquidity, poolQuote)
         );
         require(base > 0 && quote > 0 && liquidity > 0, "PL_AL: liquidity zero");
 
@@ -160,8 +158,8 @@ library PoolLibrary {
         uint256 poolBase = poolInfo.base;
         uint256 poolQuote = poolInfo.quote;
         uint256 poolTotalLiquidity = poolInfo.totalLiquidity;
-        uint256 base = PRBMath.mulDiv(params.liquidity, poolBase, poolTotalLiquidity);
-        uint256 quote = PRBMath.mulDiv(params.liquidity, poolQuote, poolTotalLiquidity);
+        uint256 base = Math.mulDiv(params.liquidity, poolBase, poolTotalLiquidity);
+        uint256 quote = Math.mulDiv(params.liquidity, poolQuote, poolTotalLiquidity);
         require(base > 0 && quote > 0, "PL_RL: output is zero");
         poolInfo.base = poolBase.sub(base);
         poolInfo.quote = poolQuote.sub(quote);
@@ -177,8 +175,8 @@ library PoolLibrary {
         returns (uint256, uint256)
     {
         return (
-            PRBMath.mulDiv(liquidity, poolInfo.base, poolInfo.totalLiquidity),
-            PRBMath.mulDiv(liquidity, poolInfo.quote, poolInfo.totalLiquidity)
+            Math.mulDiv(liquidity, poolInfo.base, poolInfo.totalLiquidity),
+            Math.mulDiv(liquidity, poolInfo.quote, poolInfo.totalLiquidity)
         );
     }
 
@@ -194,18 +192,18 @@ library PoolLibrary {
             uint256 amountSubFee = params.amount.mulRatio(oneSubFeeRatio);
             if (params.isBaseToQuote) {
                 // output = quote.sub(FullMath.mulDivRoundingUp(base, quote, base.add(amountSubFee)));
-                output = PRBMath.mulDiv(quote, amountSubFee, base.add(amountSubFee));
+                output = Math.mulDiv(quote, amountSubFee, base.add(amountSubFee));
             } else {
                 // output = base.sub(FullMath.mulDivRoundingUp(base, quote, quote.add(amountSubFee)));
-                output = PRBMath.mulDiv(base, amountSubFee, quote.add(amountSubFee));
+                output = Math.mulDiv(base, amountSubFee, quote.add(amountSubFee));
             }
         } else {
             if (params.isBaseToQuote) {
                 // output = FullMath.mulDivRoundingUp(base, quote, quote.sub(params.amount)).sub(base);
-                output = FullMath.mulDivRoundingUp(base, params.amount, quote.sub(params.amount));
+                output = Math.mulDiv(base, params.amount, quote.sub(params.amount), Math.Rounding.Up);
             } else {
                 // output = FullMath.mulDivRoundingUp(base, quote, base.sub(params.amount)).sub(quote);
-                output = FullMath.mulDivRoundingUp(quote, params.amount, base.sub(params.amount));
+                output = Math.mulDiv(quote, params.amount, base.sub(params.amount), Math.Rounding.Up);
             }
             output = output.divRatioRoundingUp(oneSubFeeRatio);
         }
@@ -232,7 +230,7 @@ library PoolLibrary {
         uint256 k = base.mul(quote);
 
         if (isBaseToQuote) {
-            uint256 kDivP = PRBMath.mulDiv(k, FixedPoint96.Q96, priceBoundX96).mulRatio(oneSubFeeRatio);
+            uint256 kDivP = Math.mulDiv(k, FixedPoint96.Q96, priceBoundX96).mulRatio(oneSubFeeRatio);
             uint256 baseSqr = base.mul(base);
             if (kDivP <= baseSqr) return 0;
             uint256 cNeg = kDivP.sub(baseSqr);
@@ -240,7 +238,7 @@ library PoolLibrary {
             output = _solveQuadratic(b.divRatio(oneSubFeeRatio), cNeg.divRatio(oneSubFeeRatio));
         } else {
             // https://www.wolframalpha.com/input?i=%28x+%2B+a%29+*+%28x+%2B+a+*+%281+-+f%29%29+%3D+kp+solve+a
-            uint256 kp = PRBMath.mulDiv(k, priceBoundX96, FixedPoint96.Q96).mulRatio(oneSubFeeRatio);
+            uint256 kp = Math.mulDiv(k, priceBoundX96, FixedPoint96.Q96).mulRatio(oneSubFeeRatio);
             uint256 quoteSqr = quote.mul(quote);
             if (kp <= quoteSqr) return 0;
             uint256 cNeg = kp.sub(quoteSqr);
@@ -261,11 +259,11 @@ library PoolLibrary {
         uint256 quote,
         uint256 baseBalancePerShareX96
     ) internal pure returns (uint256) {
-        return PRBMath.mulDiv(getShareMarkPriceX96(base, quote), FixedPoint96.Q96, baseBalancePerShareX96);
+        return Math.mulDiv(getShareMarkPriceX96(base, quote), FixedPoint96.Q96, baseBalancePerShareX96);
     }
 
     function getShareMarkPriceX96(uint256 base, uint256 quote) internal pure returns (uint256) {
-        return PRBMath.mulDiv(quote, FixedPoint96.Q96, base);
+        return Math.mulDiv(quote, FixedPoint96.Q96, base);
     }
 
     function getLiquidityDeleveraged(

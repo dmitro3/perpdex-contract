@@ -2,7 +2,6 @@
 pragma solidity >=0.7.6;
 pragma abicoder v2;
 
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";

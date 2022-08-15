@@ -9,7 +9,6 @@ import { PerpMath } from "./PerpMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { MarketStructs } from "./MarketStructs.sol";
 import { IPerpdexPriceFeed } from "../interfaces/IPerpdexPriceFeed.sol";
-import { PRBMath } from "prb-math/contracts/PRBMath.sol";
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 
 library FundingLibrary {
@@ -91,7 +90,7 @@ library FundingLibrary {
         require(decimalsBase <= MAX_DECIMALS, "FL_VILP: invalid base decimals");
         require(decimalsQuote <= MAX_DECIMALS, "FL_VILP: invalid quote decimals");
 
-        uint256 markPriceX96 = PRBMath.mulDiv(quote, FixedPoint96.Q96, base);
+        uint256 markPriceX96 = Math.mulDiv(quote, FixedPoint96.Q96, base);
         int256 premiumX96 = _calcPremiumX96(decimalsBase, decimalsQuote, indexPriceBase, indexPriceQuote, markPriceX96);
 
         require(premiumX96.abs() <= FixedPoint96.Q96.mulRatio(1e5), "FL_VILP: too far from index");
@@ -128,10 +127,10 @@ library FundingLibrary {
         uint256 priceRatioX96 = markPriceX96;
 
         if (decimalsBase != 0 || indexPriceBase != 1) {
-            priceRatioX96 = PRBMath.mulDiv(priceRatioX96, 10**decimalsBase, indexPriceBase);
+            priceRatioX96 = Math.mulDiv(priceRatioX96, 10**decimalsBase, indexPriceBase);
         }
         if (decimalsQuote != 0 || indexPriceQuote != 1) {
-            priceRatioX96 = PRBMath.mulDiv(priceRatioX96, indexPriceQuote, 10**decimalsQuote);
+            priceRatioX96 = Math.mulDiv(priceRatioX96, indexPriceQuote, 10**decimalsQuote);
         }
 
         premiumX96 = priceRatioX96.toInt256().sub(FixedPoint96.Q96.toInt256());
