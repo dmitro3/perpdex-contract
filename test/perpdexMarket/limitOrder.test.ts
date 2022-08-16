@@ -67,22 +67,48 @@ describe("PerpdexMarket limitOrder", () => {
                 .withArgs(false, 1, Q96, 2)
         })
 
-        it("post only error ask", async () => {
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(1))).to.be.revertedWith(
-                "PM_CLO: post only ask",
-            )
-        })
-
-        it("post only error bid", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(1))).to.be.revertedWith(
-                "PM_CLO: post only bid",
-            )
-        })
-
         it("caller is not exchange error", async () => {
             await expect(market.connect(alice).createLimitOrder(true, 1, Q96)).to.be.revertedWith(
                 "PM_OE: caller is not exchange",
             )
+        })
+    })
+
+    describe("createLimitOrder post only", () => {
+        describe("pool spread is larger than order book spread", () => {
+            beforeEach(async () => {
+                await market.connect(owner).setPoolFeeConfig({
+                    fixedFeeRatio: 1e4,
+                    atrFeeRatio: 0,
+                    atrEmaBlocks: 1,
+                })
+                await market.connect(exchange).createLimitOrder(true, 1, Q96.sub(1))
+                await market.connect(exchange).createLimitOrder(false, 1, Q96.add(1))
+            })
+
+            it("ok bid", async () => {
+                await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(1)))
+                    .to.emit(market, "LimitOrderCreated")
+                    .withArgs(true, 1, Q96.add(1), 2)
+            })
+
+            it("ok ask", async () => {
+                await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(1)))
+                    .to.emit(market, "LimitOrderCreated")
+                    .withArgs(false, 1, Q96.sub(1), 2)
+            })
+
+            it("error bid", async () => {
+                await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(2))).to.be.revertedWith(
+                    "PM_CLO: post only bid",
+                )
+            })
+
+            it("error ask", async () => {
+                await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(2))).to.be.revertedWith(
+                    "PM_CLO: post only ask",
+                )
+            })
         })
     })
 

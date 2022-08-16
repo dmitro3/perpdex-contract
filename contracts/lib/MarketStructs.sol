@@ -58,4 +58,17 @@ library MarketStructs {
         uint48 seqExecutionId;
         mapping(uint48 => ExecutionInfo) executionInfos;
     }
+
+    struct PoolFeeInfo {
+        uint256 atrX96;
+        uint256 referenceTimestamp;
+        uint256 currentHighX96;
+        uint256 currentLowX96;
+    }
+
+    struct PoolFeeConfig {
+        uint24 fixedFeeRatio;
+        uint24 atrFeeRatio;
+        uint32 atrEmaBlocks;
+    }
 }

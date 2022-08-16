@@ -3,7 +3,6 @@ import { TestPerpdexExchange, TestPerpdexMarket, TestERC20 } from "../../typecha
 import { BigNumber, Wallet } from "ethers"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
-import _ from "lodash"
 
 export interface PerpdexExchangeFixture {
     perpdexExchange: TestPerpdexExchange
@@ -33,7 +32,7 @@ const Q96 = BigNumber.from(2).pow(96)
 export function createPerpdexExchangeFixture(
     params: Params = {},
 ): (wallets, provider) => Promise<PerpdexExchangeFixture> {
-    params = _.extend({ linear: false, isMarketAllowed: false, initPool: false, marketCount: 1 }, params)
+    params = { linear: false, isMarketAllowed: false, initPool: false, marketCount: 1, ...params }
     return async ([owner, alice, bob, carol], provider): Promise<PerpdexExchangeFixture> => {
         let settlementToken = hre.ethers.constants.AddressZero
         let USDC
@@ -89,7 +88,11 @@ export function createPerpdexExchangeFixture(
                 ethers.constants.AddressZero,
             )) as TestPerpdexMarket
 
-            await perpdexMarkets[i].connect(owner).setPoolFeeRatio(0)
+            await perpdexMarkets[i].connect(owner).setPoolFeeConfig({
+                fixedFeeRatio: 0,
+                atrFeeRatio: 0,
+                atrEmaBlocks: 1,
+            })
             await perpdexMarkets[i].connect(owner).setFundingMaxPremiumRatio(0)
 
             if (params.isMarketAllowed) {

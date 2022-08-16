@@ -41,7 +41,11 @@ describe("PerpdexMarket swap consistency", () => {
                     describe(`fee ${fee} isBaseToQuote ${isBaseToQuote} isExactInput ${isExactInput} isLiquidation ${isLiquidation}`, () => {
                         beforeEach(async () => {
                             await market.connect(exchange).addLiquidity(initialPoolAmount, initialPoolAmount)
-                            await market.connect(owner).setPoolFeeRatio(fee)
+                            await market.connect(owner).setPoolFeeConfig({
+                                fixedFeeRatio: fee,
+                                atrFeeRatio: 0,
+                                atrEmaBlocks: 1,
+                            })
                         })
 
                         it("swap revert condition with maxSwap", async () => {

@@ -40,7 +40,11 @@ describe("PerpdexMarket maxSwap", () => {
 
     describe("with fee, without funding", () => {
         beforeEach(async () => {
-            await market.connect(owner).setPoolFeeRatio(1e4)
+            await market.connect(owner).setPoolFeeConfig({
+                fixedFeeRatio: 1e4,
+                atrFeeRatio: 0,
+                atrEmaBlocks: 1,
+            })
             await market.connect(exchange).addLiquidity(10000, 10000)
         })
         ;[

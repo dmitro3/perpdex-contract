@@ -30,7 +30,10 @@ describe("PerpdexMarket config", () => {
             expect(priceLimitConfig.emaLiquidationRatio).to.eq(25e4)
             expect(priceLimitConfig.emaSec).to.eq(300)
 
-            expect(await market.poolFeeRatio()).to.eq(3e3)
+            const poolFeeConfig = await market.poolFeeConfig()
+            expect(poolFeeConfig.fixedFeeRatio).to.eq(0)
+            expect(poolFeeConfig.atrFeeRatio).to.eq(4e6)
+            expect(poolFeeConfig.atrEmaBlocks).to.eq(16)
             expect(await market.fundingMaxPremiumRatio()).to.eq(1e4)
             expect(await market.fundingMaxElapsedSec()).to.eq(24 * 60 * 60)
             expect(await market.fundingRolloverSec()).to.eq(24 * 60 * 60)
@@ -134,24 +137,65 @@ describe("PerpdexMarket config", () => {
         })
     })
 
-    describe("setPoolFeeRatio", () => {
+    describe("setPoolFeeConfig", () => {
         it("ok", async () => {
-            await expect(market.connect(owner).setPoolFeeRatio(0)).to.emit(market, "PoolFeeRatioChanged").withArgs(0)
-            expect(await market.poolFeeRatio()).to.eq(0)
-            await expect(market.connect(owner).setPoolFeeRatio(5e4))
-                .to.emit(market, "PoolFeeRatioChanged")
-                .withArgs(5e4)
-            expect(await market.poolFeeRatio()).to.eq(5e4)
+            await expect(
+                market.connect(owner).setPoolFeeConfig({
+                    fixedFeeRatio: 0,
+                    atrFeeRatio: 0,
+                    atrEmaBlocks: 0,
+                }),
+            )
+                .to.emit(market, "PoolFeeConfigChanged")
+                .withArgs(0, 0, 0)
+            let config = await market.poolFeeConfig()
+            expect(config.fixedFeeRatio).to.eq(0)
+            expect(config.atrFeeRatio).to.eq(0)
+            expect(config.atrEmaBlocks).to.eq(0)
+
+            await expect(
+                market.connect(owner).setPoolFeeConfig({
+                    fixedFeeRatio: 5e4,
+                    atrFeeRatio: 2 ** 24 - 1,
+                    atrEmaBlocks: 1e4,
+                }),
+            )
+                .to.emit(market, "PoolFeeConfigChanged")
+                .withArgs(5e4, 2 ** 24 - 1, 1e4)
+            config = await market.poolFeeConfig()
+            expect(config.fixedFeeRatio).to.eq(5e4)
+            expect(config.atrFeeRatio).to.eq(2 ** 24 - 1)
+            expect(config.atrEmaBlocks).to.eq(1e4)
         })
 
         it("revert when not owner", async () => {
-            await expect(market.connect(alice).setPoolFeeRatio(1)).to.be.revertedWith(
-                "Ownable: caller is not the owner",
-            )
+            await expect(
+                market.connect(alice).setPoolFeeConfig({
+                    fixedFeeRatio: 0,
+                    atrFeeRatio: 0,
+                    atrEmaBlocks: 0,
+                }),
+            ).to.be.revertedWith("Ownable: caller is not the owner")
         })
 
-        it("revert when too large", async () => {
-            await expect(market.connect(owner).setPoolFeeRatio(5e4 + 1)).to.be.revertedWith("PM_SPFR: too large")
+        it("revert when too large fixedFeeRatio", async () => {
+            await expect(
+                market.connect(owner).setPoolFeeConfig({
+                    fixedFeeRatio: 5e4 + 1,
+                    atrFeeRatio: 0,
+                    atrEmaBlocks: 0,
+                }),
+            ).to.be.revertedWith("PM_SPFC: fixed fee too large")
+        })
+
+        it("revert when too large atrEmaBlocks", async () => {
+            await expect(
+                market.connect(owner).setPoolFeeConfig({
+                    fixedFeeRatio: 0,
+                    atrFeeRatio: 0,
+                    atrEmaBlocks: 1e4 + 1,
+                }),
+            ).to.be.revertedWith("PM_SPFC: atr ema blocks too big")
         })
     })
 

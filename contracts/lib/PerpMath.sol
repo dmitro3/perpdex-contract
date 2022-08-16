@@ -65,6 +65,10 @@ library PerpMath {
         return Math.mulDiv(value, ratio, 1e6);
     }
 
+    function mulRatioRoundingUp(uint256 value, uint24 ratio) internal pure returns (uint256) {
+        return Math.mulDiv(value, ratio, 1e6, Math.Rounding.Up);
+    }
+
     function divRatio(uint256 value, uint24 ratio) internal pure returns (uint256) {
         return Math.mulDiv(value, 1e6, ratio);
     }

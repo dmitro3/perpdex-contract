@@ -94,11 +94,11 @@ library MakerOrderBookLibrary {
     }
 
     function makeUserData(uint256 priceX96) internal pure returns (uint128) {
-        return (priceX96 >> 32).toUint128();
+        return priceX96.toUint128();
     }
 
-    function userDataToPriceX96(uint128 userData) internal pure returns (uint256) {
-        return userData << 32;
+    function userDataToPriceX96(uint128 userData) internal pure returns (uint128) {
+        return userData;
     }
 
     function lessThan(
@@ -107,8 +107,8 @@ library MakerOrderBookLibrary {
         uint40 key0,
         uint40 key1
     ) private view returns (bool) {
-        uint256 price0 = userDataToPriceX96(tree.nodes[key0].userData);
-        uint256 price1 = userDataToPriceX96(tree.nodes[key1].userData);
+        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
         if (price0 == price1) {
             return key0 < key1; // time priority
         }

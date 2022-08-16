@@ -39,6 +39,10 @@ contract TestPerpdexMarket is PerpdexMarket {
         priceLimitInfo = value;
     }
 
+    function setPoolFeeInfo(MarketStructs.PoolFeeInfo memory value) external {
+        poolFeeInfo = value;
+    }
+
     function getLockedLiquidityInfo() external view returns (int256 base, int256 accountValue) {
         uint256 liquidity = PoolLibrary.MINIMUM_LIQUIDITY;
 

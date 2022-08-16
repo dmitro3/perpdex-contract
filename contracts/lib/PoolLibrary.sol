@@ -213,6 +213,16 @@ library PoolLibrary {
         return Math.sqrt(b.mul(b).add(cNeg.mul(4))).sub(b).div(2);
     }
 
+    function getAskPriceX96(uint256 priceX96, uint24 feeRatio) internal pure returns (uint256) {
+        uint24 oneSubFeeRatio = PerpMath.subRatio(1e6, feeRatio);
+        return priceX96.divRatio(oneSubFeeRatio);
+    }
+
+    function getBidPriceX96(uint256 priceX96, uint24 feeRatio) internal pure returns (uint256) {
+        uint24 oneSubFeeRatio = PerpMath.subRatio(1e6, feeRatio);
+        return priceX96.mulRatioRoundingUp(oneSubFeeRatio);
+    }
+
     // must not revert
     // Trade until the trade price including fee (dy/dx) reaches priceBoundX96
     // not pool price (y/x)
