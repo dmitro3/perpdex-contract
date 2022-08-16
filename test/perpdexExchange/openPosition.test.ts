@@ -296,8 +296,8 @@ describe("PerpdexExchange trade", () => {
                     baseBalanceShare: 100,
                     quoteBalance: -100,
                 },
-                revertedWith: "TL_OP: enough mm",
-                revertedWithDry: "TL_OPD: enough mm",
+                revertedWith: "TL_VT: enough mm",
+                revertedWithDry: "TL_VT: enough mm",
             },
             {
                 title: "not liquidatable because maker position exist",
@@ -317,8 +317,54 @@ describe("PerpdexExchange trade", () => {
                     cumBaseSharePerLiquidityX96: Q96,
                     cumQuotePerLiquidityX96: Q96,
                 },
-                revertedWith: "TL_OP: no maker when liquidation",
-                revertedWithDry: "TL_OPD: no maker when liq",
+                revertedWith: "TL_VT: no maker when liquidation",
+                revertedWithDry: "TL_VT: no maker when liquidation",
+            },
+            {
+                title: "not liquidatable because ask limit order exist",
+                notSelf: true,
+                isBaseToQuote: false,
+                isExactInput: true,
+                amount: 100,
+                oppositeAmountBound: 0,
+                protocolFeeRatio: 0,
+                collateralBalance: 4,
+                takerInfo: {
+                    baseBalanceShare: 100,
+                    quoteBalance: -100,
+                },
+                orders: [
+                    {
+                        isBid: false,
+                        base: 1,
+                        priceX96: Q96,
+                    },
+                ],
+                revertedWith: "TL_VT: no ask when liquidation",
+                revertedWithDry: "TL_VT: no ask when liquidation",
+            },
+            {
+                title: "not liquidatable because bid limit order exist",
+                notSelf: true,
+                isBaseToQuote: false,
+                isExactInput: true,
+                amount: 100,
+                oppositeAmountBound: 0,
+                protocolFeeRatio: 0,
+                collateralBalance: 4,
+                takerInfo: {
+                    baseBalanceShare: 100,
+                    quoteBalance: -100,
+                },
+                orders: [
+                    {
+                        isBid: true,
+                        base: 1,
+                        priceX96: Q96,
+                    },
+                ],
+                revertedWith: "TL_VT: no bid when liquidation",
+                revertedWithDry: "TL_VT: no bid when liquidation",
             },
             {
                 title: "open is not allowed when liquidation",
@@ -563,6 +609,24 @@ describe("PerpdexExchange trade", () => {
             describe(test.title, () => {
                 beforeEach(async () => {
                     await exchange.connect(owner).setProtocolFeeRatio(test.protocolFeeRatio)
+
+                    // avoid not enough im temporarily
+                    if ((test.orders || []).length > 0) {
+                        await exchange.setAccountInfo(
+                            alice.address,
+                            {
+                                collateralBalance: 100000,
+                            },
+                            [market.address],
+                        )
+                        for (let i = 0; i < test.orders.length; i++) {
+                            await exchange.connect(alice).createLimitOrder({
+                                market: market.address,
+                                deadline: deadline,
+                                ...test.orders[i],
+                            })
+                        }
+                    }
 
                     await exchange.setAccountInfo(
                         alice.address,

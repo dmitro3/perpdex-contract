@@ -26,6 +26,14 @@ contract TestAccountLibrary {
         accountInfo.makerInfos[market] = makerInfo;
     }
 
+    function setAskRoot(address market, uint40 root) external {
+        accountInfo.limitOrderInfos[market].ask.root = root;
+    }
+
+    function setBidRoot(address market, uint40 root) external {
+        accountInfo.limitOrderInfos[market].bid.root = root;
+    }
+
     function getMarkets() external view returns (address[] memory) {
         return accountInfo.markets;
     }

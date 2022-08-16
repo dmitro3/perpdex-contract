@@ -54,10 +54,10 @@ library MakerOrderBookLibrary {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         uint256 slot = getSlot(limitOrderInfo);
         if (params.isBid) {
-            limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), lessThanBid, aggregate, slot);
+            limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), _lessThanBid, _aggregate, slot);
             limitOrderInfo.totalBaseBid += params.base;
         } else {
-            limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), lessThanAsk, aggregate, slot);
+            limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), _lessThanAsk, _aggregate, slot);
             limitOrderInfo.totalBaseAsk += params.base;
         }
         accountInfo.limitOrderCount += 1;
@@ -83,10 +83,10 @@ library MakerOrderBookLibrary {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         if (params.isBid) {
             limitOrderInfo.totalBaseBid -= base;
-            limitOrderInfo.bid.remove(params.orderId, aggregate, 0);
+            limitOrderInfo.bid.remove(params.orderId, _aggregate, 0);
         } else {
             limitOrderInfo.totalBaseAsk -= base;
-            limitOrderInfo.ask.remove(params.orderId, aggregate, 0);
+            limitOrderInfo.ask.remove(params.orderId, _aggregate, 0);
         }
         accountInfo.limitOrderCount -= 1;
 
@@ -101,7 +101,7 @@ library MakerOrderBookLibrary {
         return userData;
     }
 
-    function lessThan(
+    function _lessThan(
         RBTreeLibrary.Tree storage tree,
         bool isBid,
         uint40 key0,
@@ -116,29 +116,29 @@ library MakerOrderBookLibrary {
         return isBid ? price0 > price1 : price0 < price1;
     }
 
-    function lessThanAsk(
+    function _lessThanAsk(
         uint40 key0,
         uint40 key1,
         uint256 slot
     ) private view returns (bool) {
         PerpdexStructs.LimitOrderInfo storage info = getLimitOrderInfoFromSlot(slot);
-        return lessThan(info.ask, false, key0, key1);
+        return _lessThan(info.ask, false, key0, key1);
     }
 
-    function lessThanBid(
+    function _lessThanBid(
         uint40 key0,
         uint40 key1,
         uint256 slot
     ) private view returns (bool) {
         PerpdexStructs.LimitOrderInfo storage info = getLimitOrderInfoFromSlot(slot);
-        return lessThan(info.bid, true, key0, key1);
+        return _lessThan(info.bid, true, key0, key1);
     }
 
-    function aggregate(uint40, uint256) private pure returns (bool) {
+    function _aggregate(uint40, uint256) private pure returns (bool) {
         return true;
     }
 
-    function subtreeRemoved(uint40, uint256) private pure {}
+    function _subtreeRemoved(uint40, uint256) private pure {}
 
     function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) public {
         address[] storage markets = accountInfo.markets;
@@ -166,10 +166,10 @@ library MakerOrderBookLibrary {
         {
             uint256 slot = getSlot(limitOrderInfo);
             if (executedLastAskOrderId != 0) {
-                limitOrderInfo.ask.removeLeft(executedLastAskOrderId, lessThanAsk, aggregate, subtreeRemoved, slot);
+                limitOrderInfo.ask.removeLeft(executedLastAskOrderId, _lessThanAsk, _aggregate, _subtreeRemoved, slot);
             }
             if (executedLastBidOrderId != 0) {
-                limitOrderInfo.bid.removeLeft(executedLastBidOrderId, lessThanBid, aggregate, subtreeRemoved, slot);
+                limitOrderInfo.bid.removeLeft(executedLastBidOrderId, _lessThanBid, _aggregate, _subtreeRemoved, slot);
             }
         }
 
@@ -221,7 +221,7 @@ library MakerOrderBookLibrary {
     ) external view returns (uint40[] memory result) {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         RBTreeLibrary.Tree storage tree = isBid ? limitOrderInfo.bid : limitOrderInfo.ask;
-        uint40[100] memory orderIds;
+        uint40[256] memory orderIds;
         uint256 orderCount;
         uint40 key = tree.first();
         while (key != 0) {

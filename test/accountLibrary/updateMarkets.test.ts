@@ -24,13 +24,57 @@ describe("AccountLibrary updateMarkets", () => {
     describe("updateMarkets", () => {
         ;[
             {
-                title: "initial",
+                title: "initial taker",
+                markets: [],
+                accountInfo: [
+                    {
+                        market: 0,
+                        takerBaseBalanceShare: 0,
+                        makerLiquidity: 1,
+                    },
+                ],
+                market: 0,
+                maxMarketsPerAccount: 1,
+                afterMarkets: [0],
+            },
+            {
+                title: "initial maker",
                 markets: [],
                 accountInfo: [
                     {
                         market: 0,
                         takerBaseBalanceShare: 1,
-                        makerLiquidity: 1,
+                        makerLiquidity: 0,
+                    },
+                ],
+                market: 0,
+                maxMarketsPerAccount: 1,
+                afterMarkets: [0],
+            },
+            {
+                title: "initial ask",
+                markets: [],
+                accountInfo: [
+                    {
+                        market: 0,
+                        takerBaseBalanceShare: 0,
+                        makerLiquidity: 0,
+                        askRoot: 1,
+                    },
+                ],
+                market: 0,
+                maxMarketsPerAccount: 1,
+                afterMarkets: [0],
+            },
+            {
+                title: "initial bid",
+                markets: [],
+                accountInfo: [
+                    {
+                        market: 0,
+                        takerBaseBalanceShare: 0,
+                        makerLiquidity: 0,
+                        bidRoot: 1,
                     },
                 ],
                 market: 0,
@@ -121,15 +165,23 @@ describe("AccountLibrary updateMarkets", () => {
             it(test.title, async () => {
                 await library.setMarkets(test.markets.map(idxToMarket))
                 for (let i = 0; i < test.accountInfo.length; i++) {
-                    await library.setTakerInfo(idxToMarket(test.accountInfo[i].market), {
+                    const market = idxToMarket(test.accountInfo[i].market)
+                    await library.setTakerInfo(market, {
                         baseBalanceShare: test.accountInfo[i].takerBaseBalanceShare,
                         quoteBalance: -1,
                     })
-                    await library.setMakerInfo(idxToMarket(test.accountInfo[i].market), {
+                    await library.setMakerInfo(market, {
                         liquidity: test.accountInfo[i].makerLiquidity,
                         cumBaseSharePerLiquidityX96: 0,
                         cumQuotePerLiquidityX96: 0,
                     })
+                    const info = test.accountInfo[i] as any
+                    if (info.askRoot) {
+                        await library.setAskRoot(market, info.askRoot)
+                    }
+                    if (info.bidRoot) {
+                        await library.setBidRoot(market, info.bidRoot)
+                    }
                 }
                 const res = library.updateMarkets(idxToMarket(test.market), test.maxMarketsPerAccount)
 

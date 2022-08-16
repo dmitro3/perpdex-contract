@@ -68,7 +68,7 @@ library OrderBookLibrary {
         uint40 key
     ) public {
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
-        require(isFullyExecuted(info, key) == 0, "already fully executed");
+        require(isFullyExecuted(info, key) == 0, "OBL_CO: already fully executed");
         uint256 slot = getSlot(orderBookInfo);
         if (isBid) {
             info.tree.remove(key, aggregateBid, slot);
@@ -124,7 +124,6 @@ library OrderBookLibrary {
     function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
         uint40 root = info.tree.root;
         while (key != 0 && key != root) {
-            // TODO: gas optimize. info.tree.nodes[key].parent == 0 &&
             if (info.orderInfos[key].executionId != 0) {
                 return info.orderInfos[key].executionId;
             }

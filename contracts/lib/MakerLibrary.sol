@@ -75,14 +75,14 @@ library MakerLibrary {
         uint256 liquidityBefore = makerInfo.liquidity;
         makerInfo.liquidity = liquidityBefore.add(response.liquidity);
         {
-            makerInfo.cumBaseSharePerLiquidityX96 = blendCumPerLiquidity(
+            makerInfo.cumBaseSharePerLiquidityX96 = _blendCumPerLiquidity(
                 liquidityBefore,
                 response.liquidity,
                 response.base,
                 makerInfo.cumBaseSharePerLiquidityX96,
                 cumBasePerLiquidityX96
             );
-            makerInfo.cumQuotePerLiquidityX96 = blendCumPerLiquidity(
+            makerInfo.cumQuotePerLiquidityX96 = _blendCumPerLiquidity(
                 liquidityBefore,
                 response.liquidity,
                 response.quote,
@@ -100,7 +100,7 @@ library MakerLibrary {
     // underestimate the value to maintain the liquidation free condition
     // the error will be a burden to the insurance fund
     // the error is much smaller than the gas fee, so it is impossible to attack
-    function blendCumPerLiquidity(
+    function _blendCumPerLiquidity(
         uint256 liquidityBefore,
         uint256 addedLiquidity,
         uint256 addedToken,

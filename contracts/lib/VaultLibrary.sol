@@ -2,6 +2,7 @@
 pragma solidity >=0.7.6;
 pragma abicoder v2;
 
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,6 +15,7 @@ import { PerpdexStructs } from "./PerpdexStructs.sol";
 
 library VaultLibrary {
     using PerpMath for int256;
+    using SafeCast for int256;
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;
@@ -37,8 +39,7 @@ library VaultLibrary {
     ) external returns (uint256 compensation) {
         if (accountInfo.markets.length != 0) return 0;
         if (accountInfo.vaultInfo.collateralBalance >= 0) return 0;
-        compensation = accountInfo.vaultInfo.collateralBalance.abs();
-        require(insuranceFundInfo.balance >= compensation, "VL_Z: insurance fund empty");
+        compensation = Math.min((-accountInfo.vaultInfo.collateralBalance).toUint256(), insuranceFundInfo.balance);
         accountInfo.vaultInfo.collateralBalance += compensation.toInt256();
         insuranceFundInfo.balance -= compensation;
     }

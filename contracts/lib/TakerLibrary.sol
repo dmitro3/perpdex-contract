@@ -63,17 +63,7 @@ library TakerLibrary {
         PerpdexStructs.ProtocolInfo storage protocolInfo,
         TradeParams memory params
     ) internal returns (TradeResponse memory response) {
-        response.isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, params.mmRatio);
-
-        if (!params.isSelf) {
-            require(response.isLiquidation, "TL_OP: enough mm");
-        }
-
-        if (response.isLiquidation) {
-            require(accountInfo.makerInfos[params.market].liquidity == 0, "TL_OP: no maker when liquidation");
-            require(accountInfo.limitOrderInfos[params.market].ask.root == 0, "TL_OP: no ask when liquidation");
-            require(accountInfo.limitOrderInfos[params.market].bid.root == 0, "TL_OP: no bid when liquidation");
-        }
+        response.isLiquidation = _validateTrade(accountInfo, params.market, params.isSelf, params.mmRatio);
 
         int256 takerBaseBefore = accountInfo.takerInfos[params.market].baseBalanceShare;
 
@@ -144,17 +134,7 @@ library TakerLibrary {
         view
         returns (uint256 oppositeAmount)
     {
-        bool isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, params.mmRatio);
-
-        if (!params.isSelf) {
-            require(isLiquidation, "TL_OPD: enough mm");
-        }
-
-        if (isLiquidation) {
-            require(accountInfo.makerInfos[params.market].liquidity == 0, "TL_OPD: no maker when liq");
-            require(accountInfo.limitOrderInfos[params.market].ask.root == 0, "TL_OPD: no ask when liq");
-            require(accountInfo.limitOrderInfos[params.market].bid.root == 0, "TL_OPD: no bid when liq");
-        }
+        bool isLiquidation = _validateTrade(accountInfo, params.market, params.isSelf, params.mmRatio);
 
         oppositeAmount;
         if (params.protocolFeeRatio == 0) {
@@ -455,6 +435,25 @@ library TakerLibrary {
             } else {
                 return (amount.toInt256(), oppositeAmount.neg256());
             }
+        }
+    }
+
+    function _validateTrade(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        bool isSelf,
+        uint24 mmRatio
+    ) private view returns (bool isLiquidation) {
+        isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, mmRatio);
+
+        if (!isSelf) {
+            require(isLiquidation, "TL_VT: enough mm");
+        }
+
+        if (isLiquidation) {
+            require(accountInfo.makerInfos[market].liquidity == 0, "TL_VT: no maker when liquidation");
+            require(accountInfo.limitOrderInfos[market].ask.root == 0, "TL_VT: no ask when liquidation");
+            require(accountInfo.limitOrderInfos[market].bid.root == 0, "TL_VT: no bid when liquidation");
         }
     }
 }

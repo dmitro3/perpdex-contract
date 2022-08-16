@@ -50,13 +50,15 @@ library AccountLibrary {
 
     struct CalcMarketResponse {
         int256 baseShare;
+        uint256 baseSharePool;
+        uint256 baseShareAsk;
+        uint256 baseShareBid;
         int256 quoteBalance;
-        int256 baseSharePool;
-        int256 quoteBalancePool;
+        uint256 quoteBalancePool;
         int256 positionNotional;
         uint256 openPositionShare;
         uint256 openPositionNotional;
-        int256 accountValue;
+        int256 positionValue;
         int256 realizedPnl;
     }
 
@@ -89,17 +91,21 @@ library AccountLibrary {
                     makerInfo.cumBaseSharePerLiquidityX96,
                     makerInfo.cumQuotePerLiquidityX96
                 );
-            response.baseSharePool = poolBaseShare.toInt256();
-            response.baseShare = response.baseShare.add(deleveragedBaseShare).add(response.baseSharePool);
-            response.quoteBalancePool = poolQuoteBalance.toInt256();
-            response.quoteBalance = response.quoteBalance.add(deleveragedQuoteBalance).add(response.quoteBalancePool);
+            response.baseSharePool = poolBaseShare;
+            response.baseShare = response.baseShare.add(deleveragedBaseShare).add(response.baseSharePool.toInt256());
+            response.quoteBalancePool = poolQuoteBalance;
+            response.quoteBalance = response.quoteBalance.add(deleveragedQuoteBalance).add(
+                response.quoteBalancePool.toInt256()
+            );
             totalOrderBaseAsk = poolBaseShare;
             totalOrderBaseBid = poolBaseShare;
         }
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
-        totalOrderBaseAsk += limitOrderInfo.totalBaseAsk - totalExecutedBaseAsk;
-        totalOrderBaseBid += limitOrderInfo.totalBaseBid - totalExecutedBaseBid;
+        response.baseShareAsk = limitOrderInfo.totalBaseAsk - totalExecutedBaseAsk;
+        response.baseShareBid = limitOrderInfo.totalBaseBid - totalExecutedBaseBid;
+        totalOrderBaseAsk += response.baseShareAsk;
+        totalOrderBaseBid += response.baseShareBid;
         response.openPositionShare = Math.max(
             (response.baseShare - totalOrderBaseAsk.toInt256()).abs(),
             (response.baseShare + totalOrderBaseBid.toInt256()).abs()
@@ -111,11 +117,11 @@ library AccountLibrary {
 
             if (response.baseShare != 0) {
                 response.positionNotional = response.baseShare.mulDiv(sharePriceX96.toInt256(), FixedPoint96.Q96);
-                response.accountValue = response.accountValue.add(response.positionNotional);
+                response.positionValue = response.positionValue.add(response.positionNotional);
             }
         }
 
-        response.accountValue = response.accountValue.add(response.quoteBalance).add(response.realizedPnl);
+        response.positionValue = response.positionValue.add(response.quoteBalance);
     }
 
     struct CalcTotalResponse {
@@ -142,24 +148,29 @@ library AccountLibrary {
 
             CalcMarketResponse memory marketResponse = _calcMarket(accountInfo, market);
 
-            response.accountValue = response.accountValue.add(marketResponse.accountValue);
+            response.accountValue = response.accountValue.add(marketResponse.positionValue);
             response.collateralBalance = response.collateralBalance.add(marketResponse.realizedPnl);
             response.totalPositionNotional = response.totalPositionNotional.add(marketResponse.positionNotional.abs());
             response.totalOpenPositionNotional = response.totalOpenPositionNotional.add(
                 marketResponse.openPositionNotional
             );
-            // TODO: consider limit order
+
             response.isLiquidationFree =
                 response.isLiquidationFree &&
-                marketResponse.baseShare >= marketResponse.baseSharePool;
+                marketResponse.baseShare >= marketResponse.baseShareAsk.add(marketResponse.baseSharePool).toInt256() &&
+                marketResponse.baseShareBid == 0;
             quoteBalanceWithoutPool = quoteBalanceWithoutPool.add(
-                marketResponse.quoteBalance - marketResponse.quoteBalancePool
+                marketResponse.quoteBalance - marketResponse.quoteBalancePool.toInt256()
             );
         }
         response.accountValue = response.accountValue.add(response.collateralBalance);
         response.isLiquidationFree =
             response.isLiquidationFree &&
             quoteBalanceWithoutPool.add(response.collateralBalance) >= 0;
+    }
+
+    function getCollateralBalance(PerpdexStructs.AccountInfo storage accountInfo) external view returns (int256) {
+        return _calcTotal(accountInfo).collateralBalance;
     }
 
     function getTotalAccountValue(PerpdexStructs.AccountInfo storage accountInfo) external view returns (int256) {
@@ -216,7 +227,7 @@ library AccountLibrary {
         returns (bool)
     {
         CalcTotalResponse memory response = _calcTotal(accountInfo);
-        return response.accountValue >= response.totalPositionNotional.mulRatio(mmRatio).toInt256();
+        return response.accountValue.mul(1e6) >= response.totalPositionNotional.mul(mmRatio).toInt256();
     }
 
     // always true when hasEnoughMaintenanceMargin is true
@@ -227,8 +238,8 @@ library AccountLibrary {
     {
         CalcTotalResponse memory response = _calcTotal(accountInfo);
         return
-            response.accountValue.min(response.collateralBalance) >=
-            response.totalOpenPositionNotional.mulRatio(imRatio).toInt256() ||
+            response.accountValue.min(response.collateralBalance).mul(1e6) >=
+            response.totalOpenPositionNotional.mul(imRatio).toInt256() ||
             response.isLiquidationFree;
     }
 

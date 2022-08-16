@@ -108,7 +108,7 @@ library AccountPreviewLibrary {
 
         // Combine the ask and bid and process from the one with the smallest executionId.
         // Ask and bid are already sorted and can be processed like merge sort.
-        Execution[100] memory executions2; // TODO: max order count
+        Execution[256] memory executions2;
         uint256 executionCount;
         while (ask != 0 || bid != 0) {
             if (ask != 0 && (bid == 0 || executionIdAsk < executionIdBid)) {

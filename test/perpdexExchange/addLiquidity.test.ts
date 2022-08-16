@@ -78,7 +78,7 @@ describe("PerpdexExchange addLiquidity", () => {
                 quote: 200,
                 minBase: 100,
                 minQuote: 100,
-                collateralBalance: 80,
+                collateralBalance: 81, // rounding error
                 takerInfo: {
                     baseBalanceShare: 0,
                     quoteBalance: 0,
@@ -90,7 +90,7 @@ describe("PerpdexExchange addLiquidity", () => {
                 },
                 outputBase: 100,
                 outputQuote: 100,
-                afterCollateralBalance: 80,
+                afterCollateralBalance: 81,
                 afterTakerInfo: {
                     baseBalanceShare: 0,
                     quoteBalance: 0,

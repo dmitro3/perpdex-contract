@@ -433,6 +433,10 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
 
     // convenient getters
 
+    function getCollateralBalance(address trader) external view returns (int256) {
+        return AccountLibrary.getCollateralBalance(accountInfos[trader]);
+    }
+
     function getTotalAccountValue(address trader) external view returns (int256) {
         return AccountLibrary.getTotalAccountValue(accountInfos[trader]);
     }

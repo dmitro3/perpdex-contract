@@ -40,6 +40,14 @@ describe("PerpdexExchange deadline", () => {
             deadline: nextBlockTimestamp + 1,
         })
 
+        await exchange.connect(alice).createLimitOrder({
+            market: market.address,
+            isBid: true,
+            base: 1,
+            priceX96: 1,
+            deadline: nextBlockTimestamp + 1,
+        })
+
         await setNextTimestamp(nextBlockTimestamp)
     })
 
@@ -163,6 +171,79 @@ describe("PerpdexExchange deadline", () => {
                     liquidity: 100,
                     minBase: 0,
                     minQuote: 0,
+                    deadline: nextBlockTimestamp - 1,
+                }),
+            ).to.revertedWith("PE_CD: too late")
+        })
+    })
+
+    describe("createLimitOrder", () => {
+        it("before", async () => {
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    base: 1,
+                    priceX96: 1,
+                    deadline: nextBlockTimestamp + 1,
+                }),
+            ).not.to.revertedWith("PE_CD: too late")
+        })
+
+        it("just", async () => {
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    base: 1,
+                    priceX96: 1,
+                    deadline: nextBlockTimestamp,
+                }),
+            ).not.to.revertedWith("PE_CD: too late")
+        })
+
+        it("after", async () => {
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    base: 1,
+                    priceX96: 1,
+                    deadline: nextBlockTimestamp - 1,
+                }),
+            ).to.revertedWith("PE_CD: too late")
+        })
+    })
+
+    describe("cancelLimitOrder", () => {
+        it("before", async () => {
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    orderId: 1,
+                    deadline: nextBlockTimestamp + 1,
+                }),
+            ).not.to.revertedWith("PE_CD: too late")
+        })
+
+        it("just", async () => {
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    orderId: 1,
+                    deadline: nextBlockTimestamp,
+                }),
+            ).not.to.revertedWith("PE_CD: too late")
+        })
+
+        it("after", async () => {
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    orderId: 1,
                     deadline: nextBlockTimestamp - 1,
                 }),
             ).to.revertedWith("PE_CD: too late")
