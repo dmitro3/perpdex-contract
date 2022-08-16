@@ -128,11 +128,11 @@ library OrderBookLibrary {
     }
 
     function makeUserData(uint256 priceX96) internal pure returns (uint128) {
-        return (priceX96 >> 32).toUint128();
+        return priceX96.toUint128();
     }
 
-    function userDataToPriceX96(uint128 userData) internal pure returns (uint256) {
-        return userData << 32;
+    function userDataToPriceX96(uint128 userData) internal pure returns (uint128) {
+        return userData;
     }
 
     function lessThan(
@@ -141,8 +141,8 @@ library OrderBookLibrary {
         uint40 key0,
         uint40 key1
     ) private view returns (bool) {
-        uint256 price0 = userDataToPriceX96(tree.nodes[key0].userData);
-        uint256 price1 = userDataToPriceX96(tree.nodes[key1].userData);
+        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
         if (price0 == price1) {
             return key0 < key1; // time priority
         }
@@ -213,7 +213,7 @@ library OrderBookLibrary {
     }
 
     function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
-        uint256 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
+        uint128 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
         return Math.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
     }
 
@@ -279,7 +279,7 @@ library OrderBookLibrary {
 
     // to avoid stack too deep
     struct PreviewSwapLocalVars {
-        uint256 priceX96;
+        uint128 priceX96;
         uint256 sharePriceX96;
         uint256 amountPool;
         uint40 left;
@@ -381,7 +381,7 @@ library OrderBookLibrary {
         uint40 key = info.tree.root;
 
         while (key != 0) {
-            uint256 price = userDataToPriceX96(info.tree.nodes[key].userData);
+            uint128 price = userDataToPriceX96(info.tree.nodes[key].userData);
             uint40 left = info.tree.nodes[key].left;
             if (isBid ? price >= priceBoundX96 : price <= priceBoundX96) {
                 // key - right is more gas efficient than left + key
