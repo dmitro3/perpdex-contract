@@ -13,7 +13,9 @@ describe("PerpdexExchange updateMarkets", () => {
     let markets: TestPerpdexMarket[]
     let owner: Wallet
     let alice: Wallet
-    let deadline = BigNumber.from(2).pow(96)
+
+    const Q96 = BigNumber.from(2).pow(96)
+    const deadline = Q96
 
     const long = async (amount, idx = 0) => {
         return exchange.connect(alice).trade({
@@ -57,6 +59,25 @@ describe("PerpdexExchange updateMarkets", () => {
             liquidity: liquidity,
             minBase: 0,
             minQuote: 0,
+            deadline: deadline,
+        })
+    }
+
+    const createLimitOrder = async (isBid, idx = 0) => {
+        return exchange.connect(alice).createLimitOrder({
+            market: markets[idx].address,
+            isBid: isBid,
+            base: 1,
+            priceX96: Q96,
+            deadline: deadline,
+        })
+    }
+
+    const cancelLimitOrder = async (isBid, orderId, idx = 0) => {
+        return exchange.connect(alice).cancelLimitOrder({
+            market: markets[idx].address,
+            isBid: isBid,
+            orderId: orderId,
             deadline: deadline,
         })
     }
@@ -116,6 +137,22 @@ describe("PerpdexExchange updateMarkets", () => {
             await removeLiquidity(50)
             expect(await getMarkets()).to.deep.eq([])
         })
+
+        it("ask", async () => {
+            await createLimitOrder(false)
+            expect(await getMarkets()).to.deep.eq([market.address])
+
+            await cancelLimitOrder(false, 1)
+            expect(await getMarkets()).to.deep.eq([])
+        })
+
+        it("bid", async () => {
+            await createLimitOrder(true)
+            expect(await getMarkets()).to.deep.eq([market.address])
+
+            await cancelLimitOrder(true, 1)
+            expect(await getMarkets()).to.deep.eq([])
+        })
     })
 
     describe("max market count", () => {
@@ -152,6 +189,42 @@ describe("PerpdexExchange updateMarkets", () => {
             expect(await getMarkets()).to.deep.eq([markets[1].address])
 
             await addLiquidity(100, 100, 2)
+            expect(await getMarkets()).to.deep.eq([markets[1].address, markets[2].address])
+        })
+
+        it("ask", async () => {
+            await exchange.setMaxMarketsPerAccount(2)
+
+            await createLimitOrder(false, 0)
+            expect(await getMarkets()).to.deep.eq([markets[0].address])
+
+            await createLimitOrder(false, 1)
+            expect(await getMarkets()).to.deep.eq([markets[0].address, markets[1].address])
+
+            await expect(createLimitOrder(false, 2)).to.revertedWith("AL_UP: too many markets")
+
+            await cancelLimitOrder(false, 1)
+            expect(await getMarkets()).to.deep.eq([markets[1].address])
+
+            await createLimitOrder(false, 2)
+            expect(await getMarkets()).to.deep.eq([markets[1].address, markets[2].address])
+        })
+
+        it("bid", async () => {
+            await exchange.setMaxMarketsPerAccount(2)
+
+            await createLimitOrder(true, 0)
+            expect(await getMarkets()).to.deep.eq([markets[0].address])
+
+            await createLimitOrder(true, 1)
+            expect(await getMarkets()).to.deep.eq([markets[0].address, markets[1].address])
+
+            await expect(createLimitOrder(true, 2)).to.revertedWith("AL_UP: too many markets")
+
+            await cancelLimitOrder(true, 1)
+            expect(await getMarkets()).to.deep.eq([markets[1].address])
+
+            await createLimitOrder(true, 2)
             expect(await getMarkets()).to.deep.eq([markets[1].address, markets[2].address])
         })
     })

@@ -30,6 +30,27 @@ library OrderBookLibrary {
         uint40 fullLastKey;
     }
 
+    // to avoid stack too deep
+    struct PreviewSwapParams {
+        bool isBaseToQuote;
+        bool isExactInput;
+        uint256 amount;
+        uint256 baseBalancePerShareX96;
+    }
+
+    // to avoid stack too deep
+    struct PreviewSwapLocalVars {
+        uint128 priceX96;
+        uint256 sharePriceX96;
+        uint256 amountPool;
+        uint40 left;
+        uint40 right;
+        uint256 leftBaseSum;
+        uint256 leftQuoteSum;
+        uint256 rightBaseSum;
+        uint256 rightQuoteSum;
+    }
+
     struct PreviewSwapResponse {
         uint256 amountPool;
         uint256 baseFull;
@@ -52,12 +73,12 @@ library OrderBookLibrary {
         uint40 key = info.seqKey + 1;
         info.seqKey = key;
         info.orderInfos[key].base = base; // before insert for aggregation
-        uint128 userData = makeUserData(priceX96);
-        uint256 slot = getSlot(orderBookInfo);
+        uint128 userData = _makeUserData(priceX96);
+        uint256 slot = _getSlot(orderBookInfo);
         if (isBid) {
-            info.tree.insert(key, userData, lessThanBid, aggregateBid, slot);
+            info.tree.insert(key, userData, _lessThanBid, _aggregateBid, slot);
         } else {
-            info.tree.insert(key, userData, lessThanAsk, aggregateAsk, slot);
+            info.tree.insert(key, userData, _lessThanAsk, _aggregateAsk, slot);
         }
         return key;
     }
@@ -68,12 +89,12 @@ library OrderBookLibrary {
         uint40 key
     ) public {
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
-        require(isFullyExecuted(info, key) == 0, "OBL_CO: already fully executed");
-        uint256 slot = getSlot(orderBookInfo);
+        require(_isFullyExecuted(info, key) == 0, "OBL_CO: already fully executed");
+        uint256 slot = _getSlot(orderBookInfo);
         if (isBid) {
-            info.tree.remove(key, aggregateBid, slot);
+            info.tree.remove(key, _aggregateBid, slot);
         } else {
-            info.tree.remove(key, aggregateAsk, slot);
+            info.tree.remove(key, _aggregateAsk, slot);
         }
         delete info.orderInfos[key];
     }
@@ -85,7 +106,7 @@ library OrderBookLibrary {
     ) public view returns (uint256 base, uint256 priceX96) {
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
         base = info.orderInfos[key].base;
-        priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
+        priceX96 = _userDataToPriceX96(info.tree.nodes[key].userData);
     }
 
     function getOrderExecution(
@@ -102,124 +123,22 @@ library OrderBookLibrary {
         )
     {
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
-        executionId = isFullyExecuted(info, key);
+        executionId = _isFullyExecuted(info, key);
         if (executionId == 0) return (0, 0, 0);
 
         executedBase = info.orderInfos[key].base;
         // rounding error occurs, but it is negligible.
 
-        executedQuote = Math.mulDiv(
+        executedQuote = _quoteToBalance(
             _getQuote(info, key),
-            orderBookInfo.executionInfos[executionId].baseBalancePerShareX96,
-            FixedPoint96.Q96
+            orderBookInfo.executionInfos[executionId].baseBalancePerShareX96
         );
     }
 
     function getBestPriceX96(MarketStructs.OrderBookSideInfo storage info) external view returns (uint256) {
         if (info.tree.root == 0) return 0;
         uint40 key = info.tree.first();
-        return userDataToPriceX96(info.tree.nodes[key].userData);
-    }
-
-    function isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
-        uint40 root = info.tree.root;
-        while (key != 0 && key != root) {
-            if (info.orderInfos[key].executionId != 0) {
-                return info.orderInfos[key].executionId;
-            }
-            key = info.tree.nodes[key].parent;
-        }
-        return 0;
-    }
-
-    function makeUserData(uint256 priceX96) internal pure returns (uint128) {
-        return priceX96.toUint128();
-    }
-
-    function userDataToPriceX96(uint128 userData) internal pure returns (uint128) {
-        return userData;
-    }
-
-    function lessThan(
-        RBTreeLibrary.Tree storage tree,
-        bool isBid,
-        uint40 key0,
-        uint40 key1
-    ) private view returns (bool) {
-        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
-        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
-        if (price0 == price1) {
-            return key0 < key1; // time priority
-        }
-        // price priority
-        return isBid ? price0 > price1 : price0 < price1;
-    }
-
-    function lessThanAsk(
-        uint40 key0,
-        uint40 key1,
-        uint256 slot
-    ) private view returns (bool) {
-        MarketStructs.OrderBookInfo storage info = getOrderBookInfoFromSlot(slot);
-        return lessThan(info.ask.tree, false, key0, key1);
-    }
-
-    function lessThanBid(
-        uint40 key0,
-        uint40 key1,
-        uint256 slot
-    ) private view returns (bool) {
-        MarketStructs.OrderBookInfo storage info = getOrderBookInfoFromSlot(slot);
-        return lessThan(info.bid.tree, true, key0, key1);
-    }
-
-    function aggregate(MarketStructs.OrderBookSideInfo storage info, uint40 key) private returns (bool stop) {
-        uint256 prevBaseSum = info.orderInfos[key].baseSum;
-        uint256 prevQuoteSum = info.orderInfos[key].quoteSum;
-        uint40 left = info.tree.nodes[key].left;
-        uint40 right = info.tree.nodes[key].right;
-
-        uint256 baseSum = info.orderInfos[left].baseSum + info.orderInfos[right].baseSum + info.orderInfos[key].base;
-        uint256 quoteSum = info.orderInfos[left].quoteSum + info.orderInfos[right].quoteSum + _getQuote(info, key);
-
-        stop = baseSum == prevBaseSum && quoteSum == prevQuoteSum;
-        if (!stop) {
-            info.orderInfos[key].baseSum = baseSum;
-            info.orderInfos[key].quoteSum = quoteSum;
-        }
-    }
-
-    function aggregateAsk(uint40 key, uint256 slot) private returns (bool stop) {
-        MarketStructs.OrderBookInfo storage info = getOrderBookInfoFromSlot(slot);
-        return aggregate(info.ask, key);
-    }
-
-    function aggregateBid(uint40 key, uint256 slot) private returns (bool stop) {
-        MarketStructs.OrderBookInfo storage info = getOrderBookInfoFromSlot(slot);
-        return aggregate(info.bid, key);
-    }
-
-    function subtreeRemoved(
-        MarketStructs.OrderBookSideInfo storage info,
-        MarketStructs.OrderBookInfo storage orderBookInfo,
-        uint40 key
-    ) private {
-        info.orderInfos[key].executionId = orderBookInfo.seqExecutionId;
-    }
-
-    function subtreeRemovedAsk(uint40 key, uint256 slot) private {
-        MarketStructs.OrderBookInfo storage info = getOrderBookInfoFromSlot(slot);
-        return subtreeRemoved(info.ask, info, key);
-    }
-
-    function subtreeRemovedBid(uint40 key, uint256 slot) private {
-        MarketStructs.OrderBookInfo storage info = getOrderBookInfoFromSlot(slot);
-        return subtreeRemoved(info.bid, info, key);
-    }
-
-    function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
-        uint128 priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
-        return Math.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
+        return _userDataToPriceX96(info.tree.nodes[key].userData);
     }
 
     function swap(
@@ -236,7 +155,7 @@ library OrderBookLibrary {
         }
 
         bool isBase = params.isBaseToQuote == params.isExactInput;
-        uint256 slot = getSlot(orderBookInfo);
+        uint256 slot = _getSlot(orderBookInfo);
 
         if (response.fullLastKey != 0) {
             orderBookInfo.seqExecutionId += 1;
@@ -244,9 +163,9 @@ library OrderBookLibrary {
                 baseBalancePerShareX96: params.baseBalancePerShareX96
             });
             if (params.isBaseToQuote) {
-                info.tree.removeLeft(response.fullLastKey, lessThanBid, aggregateBid, subtreeRemovedBid, slot);
+                info.tree.removeLeft(response.fullLastKey, _lessThanBid, _aggregateBid, _subtreeRemovedBid, slot);
             } else {
-                info.tree.removeLeft(response.fullLastKey, lessThanAsk, aggregateAsk, subtreeRemovedAsk, slot);
+                info.tree.removeLeft(response.fullLastKey, _lessThanAsk, _aggregateAsk, _subtreeRemovedAsk, slot);
             }
 
             swapResponse.oppositeAmount += isBase ? response.quoteFull : response.baseFull;
@@ -257,10 +176,12 @@ library OrderBookLibrary {
         }
 
         if (response.partialKey != 0) {
-            info.orderInfos[response.partialKey].base -= response.basePartial; // result > 0
+            info.orderInfos[response.partialKey].base -= response.basePartial;
+            require(info.orderInfos[response.partialKey].base > 0, "never occur");
+
             info.tree.aggregateRecursively(
                 response.partialKey,
-                params.isBaseToQuote ? aggregateBid : aggregateAsk,
+                params.isBaseToQuote ? _aggregateBid : _aggregateAsk,
                 slot
             );
 
@@ -272,27 +193,6 @@ library OrderBookLibrary {
             require(response.basePartial == 0, "never occur");
             require(response.quotePartial == 0, "never occur");
         }
-    }
-
-    // to avoid stack too deep
-    struct PreviewSwapParams {
-        bool isBaseToQuote;
-        bool isExactInput;
-        uint256 amount;
-        uint256 baseBalancePerShareX96;
-    }
-
-    // to avoid stack too deep
-    struct PreviewSwapLocalVars {
-        uint128 priceX96;
-        uint256 sharePriceX96;
-        uint256 amountPool;
-        uint40 left;
-        uint40 right;
-        uint256 leftBaseSum;
-        uint256 leftQuoteSum;
-        uint256 rightBaseSum;
-        uint256 rightQuoteSum;
     }
 
     function previewSwap(
@@ -307,7 +207,7 @@ library OrderBookLibrary {
 
         while (key != 0) {
             PreviewSwapLocalVars memory vars;
-            vars.priceX96 = userDataToPriceX96(info.tree.nodes[key].userData);
+            vars.priceX96 = _userDataToPriceX96(info.tree.nodes[key].userData);
             vars.sharePriceX96 = Math.mulDiv(vars.priceX96, params.baseBalancePerShareX96, FixedPoint96.Q96);
             vars.amountPool = maxSwapArg(params.isBaseToQuote, params.isExactInput, vars.sharePriceX96);
 
@@ -318,11 +218,8 @@ library OrderBookLibrary {
             vars.leftQuoteSum = quoteSum + info.orderInfos[vars.left].quoteSum;
 
             uint256 rangeLeft =
-                (
-                    isBase
-                        ? vars.leftBaseSum
-                        : Math.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
-                ) + vars.amountPool;
+                (isBase ? vars.leftBaseSum : _quoteToBalance(vars.leftQuoteSum, params.baseBalancePerShareX96)) +
+                    vars.amountPool;
             if (params.amount <= rangeLeft) {
                 if (vars.left == 0) {
                     response.fullLastKey = info.tree.prev(key);
@@ -335,15 +232,12 @@ library OrderBookLibrary {
             vars.rightQuoteSum = quoteSum + (info.orderInfos[key].quoteSum - info.orderInfos[vars.right].quoteSum);
 
             uint256 rangeRight =
-                (
-                    isBase
-                        ? vars.rightBaseSum
-                        : Math.mulDiv(vars.rightQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96)
-                ) + vars.amountPool;
+                (isBase ? vars.rightBaseSum : _quoteToBalance(vars.rightQuoteSum, params.baseBalancePerShareX96)) +
+                    vars.amountPool;
             if (params.amount < rangeRight) {
                 response.amountPool = vars.amountPool;
                 response.baseFull = vars.leftBaseSum;
-                response.quoteFull = Math.mulDiv(vars.leftQuoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
+                response.quoteFull = _quoteToBalance(vars.leftQuoteSum, params.baseBalancePerShareX96);
                 if (isBase) {
                     response.basePartial = params.amount - rangeLeft; // < info.orderInfos[key].base
                     response.quotePartial = Math.mulDiv(response.basePartial, vars.sharePriceX96, FixedPoint96.Q96);
@@ -369,7 +263,7 @@ library OrderBookLibrary {
         }
 
         response.baseFull = baseSum;
-        response.quoteFull = Math.mulDiv(quoteSum, params.baseBalancePerShareX96, FixedPoint96.Q96);
+        response.quoteFull = _quoteToBalance(quoteSum, params.baseBalancePerShareX96);
         response.amountPool = params.amount - (isBase ? response.baseFull : response.quoteFull);
     }
 
@@ -386,7 +280,7 @@ library OrderBookLibrary {
         uint40 key = info.tree.root;
 
         while (key != 0) {
-            uint128 price = userDataToPriceX96(info.tree.nodes[key].userData);
+            uint128 price = _userDataToPriceX96(info.tree.nodes[key].userData);
             uint40 left = info.tree.nodes[key].left;
             if (isBid ? price >= priceBoundX96 : price <= priceBoundX96) {
                 // key - right is more gas efficient than left + key
@@ -401,18 +295,123 @@ library OrderBookLibrary {
         }
 
         if (!isBase) {
-            // share * price * baseBalancePerShareX96 = share * share_price
-            amount = Math.mulDiv(amount, baseBalancePerShareX96, FixedPoint96.Q96);
+            amount = _quoteToBalance(amount, baseBalancePerShareX96);
         }
     }
 
-    function getSlot(MarketStructs.OrderBookInfo storage d) private pure returns (uint256 slot) {
+    function _isFullyExecuted(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint48) {
+        uint40 root = info.tree.root;
+        while (key != 0 && key != root) {
+            if (info.orderInfos[key].executionId != 0) {
+                return info.orderInfos[key].executionId;
+            }
+            key = info.tree.nodes[key].parent;
+        }
+        return 0;
+    }
+
+    function _makeUserData(uint256 priceX96) private pure returns (uint128) {
+        return priceX96.toUint128();
+    }
+
+    function _userDataToPriceX96(uint128 userData) private pure returns (uint128) {
+        return userData;
+    }
+
+    function _lessThan(
+        RBTreeLibrary.Tree storage tree,
+        bool isBid,
+        uint40 key0,
+        uint40 key1
+    ) private view returns (bool) {
+        uint128 price0 = _userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = _userDataToPriceX96(tree.nodes[key1].userData);
+        if (price0 == price1) {
+            return key0 < key1; // time priority
+        }
+        // price priority
+        return isBid ? price0 > price1 : price0 < price1;
+    }
+
+    function _lessThanAsk(
+        uint40 key0,
+        uint40 key1,
+        uint256 slot
+    ) private view returns (bool) {
+        MarketStructs.OrderBookInfo storage info = _getOrderBookInfoFromSlot(slot);
+        return _lessThan(info.ask.tree, false, key0, key1);
+    }
+
+    function _lessThanBid(
+        uint40 key0,
+        uint40 key1,
+        uint256 slot
+    ) private view returns (bool) {
+        MarketStructs.OrderBookInfo storage info = _getOrderBookInfoFromSlot(slot);
+        return _lessThan(info.bid.tree, true, key0, key1);
+    }
+
+    function _aggregate(MarketStructs.OrderBookSideInfo storage info, uint40 key) private returns (bool stop) {
+        uint256 prevBaseSum = info.orderInfos[key].baseSum;
+        uint256 prevQuoteSum = info.orderInfos[key].quoteSum;
+        uint40 left = info.tree.nodes[key].left;
+        uint40 right = info.tree.nodes[key].right;
+
+        uint256 baseSum = info.orderInfos[left].baseSum + info.orderInfos[right].baseSum + info.orderInfos[key].base;
+        uint256 quoteSum = info.orderInfos[left].quoteSum + info.orderInfos[right].quoteSum + _getQuote(info, key);
+
+        stop = baseSum == prevBaseSum && quoteSum == prevQuoteSum;
+        if (!stop) {
+            info.orderInfos[key].baseSum = baseSum;
+            info.orderInfos[key].quoteSum = quoteSum;
+        }
+    }
+
+    function _aggregateAsk(uint40 key, uint256 slot) private returns (bool stop) {
+        MarketStructs.OrderBookInfo storage info = _getOrderBookInfoFromSlot(slot);
+        return _aggregate(info.ask, key);
+    }
+
+    function _aggregateBid(uint40 key, uint256 slot) private returns (bool stop) {
+        MarketStructs.OrderBookInfo storage info = _getOrderBookInfoFromSlot(slot);
+        return _aggregate(info.bid, key);
+    }
+
+    function _subtreeRemoved(
+        MarketStructs.OrderBookSideInfo storage info,
+        MarketStructs.OrderBookInfo storage orderBookInfo,
+        uint40 key
+    ) private {
+        info.orderInfos[key].executionId = orderBookInfo.seqExecutionId;
+    }
+
+    function _subtreeRemovedAsk(uint40 key, uint256 slot) private {
+        MarketStructs.OrderBookInfo storage info = _getOrderBookInfoFromSlot(slot);
+        return _subtreeRemoved(info.ask, info, key);
+    }
+
+    function _subtreeRemovedBid(uint40 key, uint256 slot) private {
+        MarketStructs.OrderBookInfo storage info = _getOrderBookInfoFromSlot(slot);
+        return _subtreeRemoved(info.bid, info, key);
+    }
+
+    // returns quoteBalance / baseBalancePerShare
+    function _getQuote(MarketStructs.OrderBookSideInfo storage info, uint40 key) private view returns (uint256) {
+        uint128 priceX96 = _userDataToPriceX96(info.tree.nodes[key].userData);
+        return Math.mulDiv(info.orderInfos[key].base, priceX96, FixedPoint96.Q96);
+    }
+
+    function _quoteToBalance(uint256 quote, uint256 baseBalancePerShareX96) private pure returns (uint256) {
+        return Math.mulDiv(quote, baseBalancePerShareX96, FixedPoint96.Q96);
+    }
+
+    function _getSlot(MarketStructs.OrderBookInfo storage d) private pure returns (uint256 slot) {
         assembly {
             slot := d.slot
         }
     }
 
-    function getOrderBookInfoFromSlot(uint256 slot) private pure returns (MarketStructs.OrderBookInfo storage d) {
+    function _getOrderBookInfoFromSlot(uint256 slot) private pure returns (MarketStructs.OrderBookInfo storage d) {
         assembly {
             d.slot := slot
         }

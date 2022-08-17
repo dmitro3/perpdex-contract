@@ -78,7 +78,7 @@ describe("TakerLibrary", () => {
                     oppositeAmount: test.swapOppositeAmount,
                     basePartial: 0,
                     quotePartial: 0,
-                    partialKey: 0,
+                    partialOrderId: 0,
                 })
 
                 await library.setProtocolInfo({ protocolFee: test.protocolFeeBalance })

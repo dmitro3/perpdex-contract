@@ -46,6 +46,15 @@ describe("PerpdexMarket getQuote", () => {
                 bidPriceX96: Q96.mul(99).div(100).add(1),
             },
             {
+                title: "pool only with fee and funding",
+                base: 10000,
+                quote: 10000,
+                fixedFeeRatio: 1e4,
+                baseBalancePerShareX96: Q96.mul(2),
+                askPriceX96: Q96.div(2).mul(100).div(99),
+                bidPriceX96: Q96.div(2).mul(99).div(100).add(1),
+            },
+            {
                 title: "pool spread is larger than order book",
                 base: 10000,
                 quote: 10000,
@@ -54,6 +63,17 @@ describe("PerpdexMarket getQuote", () => {
                 orderBookBid: Q96.sub(1),
                 askPriceX96: Q96.add(1),
                 bidPriceX96: Q96.sub(1),
+            },
+            {
+                title: "pool spread is larger than order book. funding not affect",
+                base: 10000,
+                quote: 10000,
+                fixedFeeRatio: 1e4,
+                baseBalancePerShareX96: Q96.mul(2),
+                orderBookAsk: Q96.div(2).add(1),
+                orderBookBid: Q96.div(2).sub(1),
+                askPriceX96: Q96.div(2).add(1),
+                bidPriceX96: Q96.div(2).sub(1),
             },
             {
                 title: "pool spread is smaller than order book",
@@ -74,7 +94,7 @@ describe("PerpdexMarket getQuote", () => {
                         totalLiquidity: (test.base * test.quote) ** 0.5,
                         cumBasePerLiquidityX96: 0,
                         cumQuotePerLiquidityX96: 0,
-                        baseBalancePerShareX96: Q96,
+                        baseBalancePerShareX96: test.baseBalancePerShareX96 || Q96,
                     })
                     await market.setPoolFeeConfig({
                         fixedFeeRatio: test.fixedFeeRatio,

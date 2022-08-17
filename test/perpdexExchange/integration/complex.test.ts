@@ -5,6 +5,7 @@ import { createPerpdexExchangeFixture } from "../fixtures"
 import { BigNumber, Wallet } from "ethers"
 import { getTimestamp, setNextTimestamp } from "../../helper/time"
 import { MockContract } from "ethereum-waffle"
+import _ from "lodash"
 
 describe("PerpdexExchange complex situation", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -136,6 +137,38 @@ describe("PerpdexExchange complex situation", () => {
         })
     }
 
+    const createAsk = async (trader, amount, priceX96, idx = 0) => {
+        return exchange.connect(trader).createLimitOrder({
+            market: markets[idx].address,
+            isBid: false,
+            base: amount,
+            priceX96: priceX96,
+            deadline: deadline,
+        })
+    }
+
+    const createBid = async (trader, amount, priceX96, idx = 0) => {
+        return exchange.connect(trader).createLimitOrder({
+            market: markets[idx].address,
+            isBid: true,
+            base: amount,
+            priceX96: priceX96,
+            deadline: deadline,
+        })
+    }
+
+    const markPriceX96 = async (idx = 0) => {
+        return await markets[idx].getMarkPriceX96()
+    }
+
+    const askPriceX96 = async (idx = 0) => {
+        return await markets[idx].getAskPriceX96()
+    }
+
+    const bidPriceX96 = async (idx = 0) => {
+        return await markets[idx].getBidPriceX96()
+    }
+
     const deposit = async (trader, amount) => {
         await exchange.connect(trader).deposit(0, { value: amount })
     }
@@ -172,6 +205,64 @@ describe("PerpdexExchange complex situation", () => {
     const assertBaseZerosum = async () => {
         for (let i = 0; i < markets.length; i++) {
             await assertBaseZerosumByMarket(markets[i])
+        }
+    }
+
+    const assertLimitOrderCount = async () => {
+        for (let i = 0; i < traders.length; i++) {
+            const trader = traders[i]
+            const limitOrderCount = (await exchange.accountInfos(trader.address)).limitOrderCount
+            let count = 0
+            for (let j = 0; j < markets.length; j++) {
+                const asks = await exchange.getLimitOrderIds(trader.address, markets[j].address, false)
+                const bids = await exchange.getLimitOrderIds(trader.address, markets[j].address, true)
+                count += asks.length + bids.length
+            }
+            expect(limitOrderCount).to.eq(count)
+        }
+    }
+
+    const assertTotalBase = async () => {
+        for (let i = 0; i < traders.length; i++) {
+            const trader = traders[i]
+
+            for (let j = 0; j < markets.length; j++) {
+                const info = await exchange.getLimitOrderInfo(trader.address, market.address)
+                const totalBase = info.slice(2, 4)
+
+                let baseAsk = BigNumber.from(0)
+                let baseBid = BigNumber.from(0)
+                const asks = await exchange.getLimitOrderIds(trader.address, markets[j].address, false)
+                const bids = await exchange.getLimitOrderIds(trader.address, markets[j].address, true)
+                for (let k = 0; k < asks.length; k++) {
+                    baseAsk = (await market.getLimitOrderInfo(false, asks[k]))[0].add(baseAsk)
+                }
+                for (let k = 0; k < bids.length; k++) {
+                    baseBid = (await market.getLimitOrderInfo(true, bids[k]))[0].add(baseBid)
+                }
+
+                expect(totalBase).to.deep.eq([baseAsk, baseBid])
+            }
+        }
+    }
+
+    const assertMarkets = async () => {
+        for (let i = 0; i < traders.length; i++) {
+            const trader = traders[i]
+            const traderMarkets = await exchange.getAccountMarkets(trader.address)
+
+            const actualMarkets = []
+            for (let j = 0; j < markets.length; j++) {
+                const takerInfo = await exchange.getTakerInfo(trader.address, market.address)
+                const makerInfo = await exchange.getMakerInfo(trader.address, market.address)
+                const [askRoot, bidRoot] = await exchange.getLimitOrderInfo(trader.address, market.address)
+
+                if (!takerInfo.baseBalanceShare.eq(0) || !makerInfo.liquidity.eq(0) || askRoot != 0 || bidRoot != 0) {
+                    actualMarkets.push(markets[j].address)
+                }
+            }
+
+            expect(_.sortBy(traderMarkets)).to.deep.eq(_.sortBy(actualMarkets))
         }
     }
 
@@ -350,6 +441,11 @@ describe("PerpdexExchange complex situation", () => {
     describe("consistency", () => {
         beforeEach(async () => {
             await exchange.connect(owner).setProtocolFeeRatio(1e4)
+            await markets[0].connect(owner).setPoolFeeConfig({
+                fixedFeeRatio: 1e3,
+                atrFeeRatio: 4e6,
+                atrEmaBlocks: 16,
+            })
             await markets[0].connect(owner).setPriceLimitConfig({
                 normalOrderRatio: 20e4,
                 liquidationRatio: 40e4,
@@ -398,6 +494,80 @@ describe("PerpdexExchange complex situation", () => {
 
             it("base zero sum", async () => {
                 await assertBaseZerosum()
+            })
+
+            it("markets consistency", async () => {
+                await assertMarkets()
+            })
+
+            it("totalBase consistency", async () => {
+                await assertTotalBase()
+            })
+
+            it("limitOrderCount consistency", async () => {
+                await assertLimitOrderCount()
+            })
+
+            it("insurance fund profit", async () => {
+                const fundInfo = await exchange.insuranceFundInfo()
+                expect(fundInfo.balance).to.gt(epsilon)
+                expect(fundInfo.liquidationRewardBalance).to.gt(epsilon)
+            })
+
+            it("protocol fee profit", async () => {
+                const protocolFee = await exchange.protocolInfo()
+                expect(protocolFee).to.gt(epsilon)
+            })
+        })
+
+        describe("complex scenario 2 (limit order)", () => {
+            beforeEach(async () => {
+                const carolSize = await maxLong(carol)
+                let amount = carolSize
+                expect(amount).to.gt(epsilon)
+                await deposit(carol, amount.div(2))
+                await setIndexPrice(X10_18.mul(X10_18))
+                await long(carol, amount) // will be liquidated
+                await setIndexPrice(1)
+                await setElapsed(3600, true)
+
+                for (let i = 0; i < 5; i++) {
+                    amount = await maxShort(alice)
+                    expect(amount).to.gt(epsilon)
+                    await short(alice, amount)
+                    await setIndexPrice(X10_18.mul(X10_18))
+                    await setElapsed(3600, true)
+
+                    const askPrice = await askPriceX96()
+                    await createAsk(bob, amount.div(2), askPrice)
+                    const bidPrice = await bidPriceX96()
+                    await createAsk(bob, amount.div(2), bidPrice)
+                }
+
+                await shortLiq(carol, bob, carolSize)
+                await setElapsed(3600, true)
+
+                await removeLiquidity(bob, PoolAmount)
+            })
+
+            it("account value zero sum", async () => {
+                await assertZerosum()
+            })
+
+            it("base zero sum", async () => {
+                await assertBaseZerosum()
+            })
+
+            it("markets consistency", async () => {
+                await assertMarkets()
+            })
+
+            it("totalBase consistency", async () => {
+                await assertTotalBase()
+            })
+
+            it("limitOrderCount consistency", async () => {
+                await assertLimitOrderCount()
             })
 
             it("insurance fund profit", async () => {

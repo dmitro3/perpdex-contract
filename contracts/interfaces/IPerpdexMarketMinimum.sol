@@ -7,7 +7,7 @@ interface IPerpdexMarketMinimum {
         uint256 oppositeAmount;
         uint256 basePartial;
         uint256 quotePartial;
-        uint40 partialKey;
+        uint40 partialOrderId;
     }
 
     function swap(

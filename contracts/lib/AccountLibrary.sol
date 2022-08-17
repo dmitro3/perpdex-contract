@@ -169,6 +169,16 @@ library AccountLibrary {
             quoteBalanceWithoutPool.add(response.collateralBalance) >= 0;
     }
 
+    function getTakerInfo(PerpdexStructs.AccountInfo storage accountInfo, address market)
+        external
+        view
+        returns (PerpdexStructs.TakerInfo memory takerInfo)
+    {
+        (AccountPreviewLibrary.Execution[] memory executions, , ) =
+            AccountPreviewLibrary.getLimitOrderExecutions(accountInfo, market);
+        (takerInfo, , , ) = AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market, executions);
+    }
+
     function getCollateralBalance(PerpdexStructs.AccountInfo storage accountInfo) external view returns (int256) {
         return _calcTotal(accountInfo).collateralBalance;
     }

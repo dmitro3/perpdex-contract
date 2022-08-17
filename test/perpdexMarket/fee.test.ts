@@ -176,6 +176,21 @@ describe("PerpdexMarket fee", () => {
                 priceLimitNormalOrderRatio: 10e4,
                 feeRatio: 15e3 - 1, // rounding error
             },
+            {
+                title: "adaptive no memory too large",
+                poolFeeInfo: {
+                    atrX96: 0,
+                    currentHighX96: Q96,
+                    currentLowX96: 1,
+                },
+                poolFeeConfig: {
+                    fixedFeeRatio: 0,
+                    atrFeeRatio: 1e6,
+                    atrEmaBlocks: 0,
+                },
+                priceLimitNormalOrderRatio: 10e4,
+                feeRatio: 5e4,
+            },
         ].forEach(test => {
             describe(test.title, () => {
                 ;[-1, 0, 1].forEach(async referenceTimestamp => {

@@ -116,9 +116,9 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         TakerLibrary.TradeResponse memory response = _doTrade(params);
 
         int256 partialRealizedPnL;
-        if (response.rawResponse.partialKey != 0) {
+        if (response.rawResponse.partialOrderId != 0) {
             address partialTrader =
-                orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialKey];
+                orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialOrderId];
             partialRealizedPnL = MakerOrderBookLibrary.processPartialExecution(
                 accountInfos[partialTrader],
                 params.market,
@@ -378,6 +378,20 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         return accountInfos[trader].markets;
     }
 
+    function getLimitOrderInfo(address trader, address market)
+        external
+        view
+        returns (
+            uint40 askRoot,
+            uint40 bidRoot,
+            uint256 totalBaseAsk,
+            uint256 totalBaseBid
+        )
+    {
+        PerpdexStructs.LimitOrderInfo storage info = accountInfos[trader].limitOrderInfos[market];
+        return (info.ask.root, info.bid.root, info.totalBaseAsk, info.totalBaseBid);
+    }
+
     function getLimitOrderIds(
         address trader,
         address market,
@@ -432,6 +446,10 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     }
 
     // convenient getters
+
+    function getTakerInfoLazy(address trader, address market) external view returns (PerpdexStructs.TakerInfo memory) {
+        return AccountLibrary.getTakerInfo(accountInfos[trader], market);
+    }
 
     function getCollateralBalance(address trader) external view returns (int256) {
         return AccountLibrary.getCollateralBalance(accountInfos[trader]);

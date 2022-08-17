@@ -68,21 +68,22 @@ contract TestPerpdexMarket is PerpdexMarket {
     function markFullyExecuted(
         bool isBid,
         uint40 key,
-        uint48 executionId
+        uint48 executionId,
+        uint256 baseBalancePerShareX96
     ) external {
         if (executionId == 0) return;
 
         if (isBid) {
-            orderBookInfo.bid.orderInfos[key].executionId = executionId;
-            orderBookInfo.bid.tree.root = 0;
-            orderBookInfo.bid.tree.nodes[orderBookInfo.bid.tree.nodes[key].left].parent = 0;
-            orderBookInfo.bid.tree.nodes[orderBookInfo.bid.tree.nodes[key].right].parent = 0;
+            _orderBookInfo.bid.orderInfos[key].executionId = executionId;
+            _orderBookInfo.bid.tree.root = 0;
+            _orderBookInfo.bid.tree.nodes[_orderBookInfo.bid.tree.nodes[key].left].parent = 0;
+            _orderBookInfo.bid.tree.nodes[_orderBookInfo.bid.tree.nodes[key].right].parent = 0;
         } else {
-            orderBookInfo.ask.orderInfos[key].executionId = executionId;
-            orderBookInfo.ask.tree.root = 0;
-            orderBookInfo.ask.tree.nodes[orderBookInfo.ask.tree.nodes[key].left].parent = 0;
-            orderBookInfo.ask.tree.nodes[orderBookInfo.ask.tree.nodes[key].right].parent = 0;
+            _orderBookInfo.ask.orderInfos[key].executionId = executionId;
+            _orderBookInfo.ask.tree.root = 0;
+            _orderBookInfo.ask.tree.nodes[_orderBookInfo.ask.tree.nodes[key].left].parent = 0;
+            _orderBookInfo.ask.tree.nodes[_orderBookInfo.ask.tree.nodes[key].right].parent = 0;
         }
-        orderBookInfo.executionInfos[executionId].baseBalancePerShareX96 = FixedPoint96.Q96;
+        _orderBookInfo.executionInfos[executionId].baseBalancePerShareX96 = baseBalancePerShareX96;
     }
 }

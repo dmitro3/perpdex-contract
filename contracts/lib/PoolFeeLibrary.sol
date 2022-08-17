@@ -36,10 +36,10 @@ library PoolFeeLibrary {
     function feeRatio(MarketStructs.PoolFeeInfo storage poolFeeInfo, MarketStructs.PoolFeeConfig memory config)
         internal
         view
-        returns (uint24)
+        returns (uint256)
     {
         uint256 atrX96 = _calculateAtrX96(poolFeeInfo, config.atrEmaBlocks);
-        return Math.mulDiv(config.atrFeeRatio, atrX96, FixedPoint96.Q96).add(config.fixedFeeRatio).toUint24();
+        return Math.mulDiv(config.atrFeeRatio, atrX96, FixedPoint96.Q96).add(config.fixedFeeRatio);
     }
 
     function _calculateAtrX96(MarketStructs.PoolFeeInfo storage poolFeeInfo, uint32 atrEmaBlocks)

@@ -710,6 +710,7 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96,
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 totalAccountValue: 100,
@@ -738,8 +739,13 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96,
                         executionId: 1,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
+                getTakerInfoLazy: {
+                    baseBalanceShare: 100,
+                    quoteBalance: -100,
+                },
                 totalAccountValue: 400,
                 positionShare: 100,
                 positionNotional: 400,
@@ -766,6 +772,7 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96.mul(5),
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 totalAccountValue: 100,
@@ -794,8 +801,13 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96.mul(5),
                         executionId: 1,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
+                getTakerInfoLazy: {
+                    baseBalanceShare: -100,
+                    quoteBalance: 500,
+                },
                 totalAccountValue: 200,
                 positionShare: -100,
                 positionNotional: -400,
@@ -822,34 +834,43 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96,
                         executionId: 1,
+                        baseBalancePerShareX96: Q96.div(2),
                     },
                     {
                         isBid: false,
                         base: 100,
                         priceX96: Q96.mul(5),
                         executionId: 2,
+                        baseBalancePerShareX96: Q96.mul(2),
                     },
                     {
                         isBid: true,
                         base: 100,
                         priceX96: Q96,
                         executionId: 3,
+                        baseBalancePerShareX96: Q96,
                     },
                     {
                         isBid: false,
                         base: 50,
                         priceX96: Q96.mul(5),
                         executionId: 4,
+                        baseBalancePerShareX96: Q96,
                     },
                     {
                         isBid: true,
                         base: 50,
                         priceX96: Q96,
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
-                getCollateralBalance: 700,
-                totalAccountValue: 850,
+                getTakerInfoLazy: {
+                    baseBalanceShare: 50,
+                    quoteBalance: -50,
+                },
+                getCollateralBalance: 1250,
+                totalAccountValue: 1400,
                 positionShare: 50,
                 positionNotional: 200,
                 openPositionShare: 100,
@@ -879,8 +900,13 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96.mul(5),
                         executionId: 1,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
+                getTakerInfoLazy: {
+                    baseBalanceShare: -75,
+                    quoteBalance: 375,
+                },
                 getCollateralBalance: 125,
                 totalAccountValue: 200,
                 positionShare: -75,
@@ -912,8 +938,13 @@ describe("PerpdexExchange getters", () => {
                         base: 100,
                         priceX96: Q96,
                         executionId: 1,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
+                getTakerInfoLazy: {
+                    baseBalanceShare: 75,
+                    quoteBalance: -75,
+                },
                 getCollateralBalance: 175,
                 totalAccountValue: 400,
                 positionShare: 75,
@@ -945,6 +976,7 @@ describe("PerpdexExchange getters", () => {
                         base: 25,
                         priceX96: Q96.mul(5),
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 getCollateralBalance: 100,
@@ -978,6 +1010,7 @@ describe("PerpdexExchange getters", () => {
                         base: 25,
                         priceX96: Q96,
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 getCollateralBalance: 100,
@@ -1016,6 +1049,7 @@ describe("PerpdexExchange getters", () => {
                         base: 50,
                         priceX96: Q96,
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 getCollateralBalance: 100,
@@ -1054,6 +1088,7 @@ describe("PerpdexExchange getters", () => {
                         base: 50,
                         priceX96: Q96.mul(5),
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 getCollateralBalance: 100,
@@ -1095,6 +1130,10 @@ describe("PerpdexExchange getters", () => {
                 })
 
                 const assert = async () => {
+                    const takerInfo = await exchange.getTakerInfoLazy(alice.address, market.address)
+                    const expectedTakerInfo = test.getTakerInfoLazy || test.takerInfo
+                    expect(takerInfo.baseBalanceShare).to.eq(expectedTakerInfo?.baseBalanceShare || 0)
+                    expect(takerInfo.quoteBalance).to.eq(expectedTakerInfo?.quoteBalance || 0)
                     expect(await exchange.getCollateralBalance(alice.address)).to.eq(
                         test.getCollateralBalance || test.collateralBalance,
                     )
@@ -1127,15 +1166,6 @@ describe("PerpdexExchange getters", () => {
                 it("after settlement", async () => {
                     await exchange.settleLimitOrders(alice.address)
                     await assert()
-
-                    // TODO: move to appropriate place (settleLimitOrders test)
-                    for (let i = 0; i < 2; i++) {
-                        const isBid = i == 0
-                        const orderIds = await exchange.getLimitOrderIds(alice.address, market.address, isBid)
-                        for (let j = 0; j < orderIds.length; j++) {
-                            expect(await market.getLimitOrderExecution(isBid, orderIds[j])).to.deep.eq([0, 0, 0])
-                        }
-                    }
                 })
             })
         })

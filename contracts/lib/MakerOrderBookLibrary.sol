@@ -52,7 +52,7 @@ library MakerOrderBookLibrary {
         orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(params.isBid, params.base, params.priceX96);
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
-        uint256 slot = getSlot(limitOrderInfo);
+        uint256 slot = _getSlot(limitOrderInfo);
         if (params.isBid) {
             limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), _lessThanBid, _aggregate, slot);
             limitOrderInfo.totalBaseBid += params.base;
@@ -121,7 +121,7 @@ library MakerOrderBookLibrary {
         uint40 key1,
         uint256 slot
     ) private view returns (bool) {
-        PerpdexStructs.LimitOrderInfo storage info = getLimitOrderInfoFromSlot(slot);
+        PerpdexStructs.LimitOrderInfo storage info = _getLimitOrderInfoFromSlot(slot);
         return _lessThan(info.ask, false, key0, key1);
     }
 
@@ -130,7 +130,7 @@ library MakerOrderBookLibrary {
         uint40 key1,
         uint256 slot
     ) private view returns (bool) {
-        PerpdexStructs.LimitOrderInfo storage info = getLimitOrderInfoFromSlot(slot);
+        PerpdexStructs.LimitOrderInfo storage info = _getLimitOrderInfoFromSlot(slot);
         return _lessThan(info.bid, true, key0, key1);
     }
 
@@ -145,11 +145,11 @@ library MakerOrderBookLibrary {
         uint256 i = markets.length;
         while (i > 0) {
             --i;
-            settleLimitOrders(accountInfo, markets[i], maxMarketsPerAccount);
+            _settleLimitOrders(accountInfo, markets[i], maxMarketsPerAccount);
         }
     }
 
-    function settleLimitOrders(
+    function _settleLimitOrders(
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         uint8 maxMarketsPerAccount
@@ -164,7 +164,7 @@ library MakerOrderBookLibrary {
         if (executionLength == 0) return;
 
         {
-            uint256 slot = getSlot(limitOrderInfo);
+            uint256 slot = _getSlot(limitOrderInfo);
             if (executedLastAskOrderId != 0) {
                 limitOrderInfo.ask.removeLeft(executedLastAskOrderId, _lessThanAsk, _aggregate, _subtreeRemoved, slot);
             }
@@ -197,7 +197,7 @@ library MakerOrderBookLibrary {
         uint8 maxMarketsPerAccount,
         IPerpdexMarketMinimum.SwapResponse memory rawResponse
     ) external returns (int256 realizedPnl) {
-        settleLimitOrders(accountInfo, market, maxMarketsPerAccount);
+        _settleLimitOrders(accountInfo, market, maxMarketsPerAccount);
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         if (isBaseToQuote) {
             limitOrderInfo.totalBaseBid -= rawResponse.basePartial;
@@ -235,13 +235,13 @@ library MakerOrderBookLibrary {
         }
     }
 
-    function getSlot(PerpdexStructs.LimitOrderInfo storage d) private pure returns (uint256 slot) {
+    function _getSlot(PerpdexStructs.LimitOrderInfo storage d) private pure returns (uint256 slot) {
         assembly {
             slot := d.slot
         }
     }
 
-    function getLimitOrderInfoFromSlot(uint256 slot) private pure returns (PerpdexStructs.LimitOrderInfo storage d) {
+    function _getLimitOrderInfoFromSlot(uint256 slot) private pure returns (PerpdexStructs.LimitOrderInfo storage d) {
         assembly {
             d.slot := slot
         }

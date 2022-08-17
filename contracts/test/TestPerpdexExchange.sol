@@ -56,6 +56,7 @@ contract TestPerpdexExchange is PerpdexExchange {
         uint256 base;
         uint256 priceX96;
         uint48 executionId;
+        uint256 baseBalancePerShareX96;
     }
 
     function createLimitOrdersForTest(CreateLimitOrdersForTestParams[] calldata paramsList, address market) external {
@@ -84,7 +85,12 @@ contract TestPerpdexExchange is PerpdexExchange {
 
         for (uint256 i = 0; i < paramsList.length; ++i) {
             CreateLimitOrdersForTestParams memory params = paramsList[i];
-            TestPerpdexMarket(market).markFullyExecuted(params.isBid, orderIds[i], params.executionId);
+            TestPerpdexMarket(market).markFullyExecuted(
+                params.isBid,
+                orderIds[i],
+                params.executionId,
+                params.baseBalancePerShareX96
+            );
         }
 
         accountInfos[trader].vaultInfo.collateralBalance = collateralBalance;

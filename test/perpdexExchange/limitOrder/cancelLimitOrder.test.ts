@@ -20,6 +20,11 @@ describe("PerpdexExchange limitOrder", () => {
         expect((await exchange.accountInfos(alice.address)).limitOrderCount).to.eq(expected)
     }
 
+    const assertTotalBase = async expected => {
+        const info = await exchange.getLimitOrderInfo(alice.address, market.address)
+        expect(info.slice(2, 4)).to.deep.eq(expected)
+    }
+
     const assertMarkets = async expected => {
         expect(await exchange.getAccountMarkets(alice.address)).to.deep.eq(expected)
     }
@@ -90,6 +95,7 @@ describe("PerpdexExchange limitOrder", () => {
                 .withArgs(alice.address, market.address, hre.ethers.constants.AddressZero, false, 1)
 
             await assertLimitOrderCount(0)
+            await assertTotalBase([0, 0])
             await assertMarkets([])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([])
@@ -126,6 +132,7 @@ describe("PerpdexExchange limitOrder", () => {
                 .withArgs(alice.address, market.address, owner.address, true, 1)
 
             await assertLimitOrderCount(0)
+            await assertTotalBase([0, 0])
             await assertMarkets([])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([])
         })
@@ -161,6 +168,7 @@ describe("PerpdexExchange limitOrder", () => {
                 .withArgs(alice.address, market.address, owner.address, false, 1)
 
             await assertLimitOrderCount(0)
+            await assertTotalBase([0, 0])
             await assertMarkets([])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([])
         })
@@ -235,12 +243,14 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96,
                         executionId: 1,
+                        baseBalancePerShareX96: Q96,
                     },
                     {
                         isBid: false,
                         base: 1,
                         priceX96: Q96,
                         executionId: 1,
+                        baseBalancePerShareX96: Q96,
                     },
                 ],
                 market.address,

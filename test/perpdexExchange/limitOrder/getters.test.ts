@@ -36,7 +36,7 @@ describe("PerpdexExchange limitOrder", () => {
         )
     })
 
-    describe("various cases", () => {
+    describe("getters", () => {
         ;[
             {
                 title: "ask same price",
@@ -46,6 +46,7 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96,
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     }
                 }),
                 expected: {
@@ -61,6 +62,7 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96.add(4 - i),
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     }
                 }),
                 expected: {
@@ -76,6 +78,7 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96,
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     }
                 }),
                 expected: {
@@ -91,6 +94,7 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96.sub(4 - i),
                         executionId: 0,
+                        baseBalancePerShareX96: Q96,
                     }
                 }),
                 expected: {
@@ -106,6 +110,7 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96,
                         executionId: i % 2 == 0 ? 1 : 0,
+                        baseBalancePerShareX96: Q96,
                     }
                 }),
                 expected: {
@@ -121,6 +126,39 @@ describe("PerpdexExchange limitOrder", () => {
                         base: 1,
                         priceX96: Q96,
                         executionId: i % 2 == 0 ? 1 : 0,
+                        baseBalancePerShareX96: Q96,
+                    }
+                }),
+                expected: {
+                    askOrderIds: [],
+                    bidOrderIds: [1, 2, 3, 4],
+                },
+            },
+            {
+                title: "ask fully executed with funding",
+                orders: _.map(_.range(4), i => {
+                    return {
+                        isBid: false,
+                        base: 1,
+                        priceX96: Q96,
+                        executionId: 1 + i,
+                        baseBalancePerShareX96: Q96.mul(1 + i),
+                    }
+                }),
+                expected: {
+                    askOrderIds: [1, 2, 3, 4],
+                    bidOrderIds: [],
+                },
+            },
+            {
+                title: "bid fully executed with funding",
+                orders: _.map(_.range(4), i => {
+                    return {
+                        isBid: true,
+                        base: 1,
+                        priceX96: Q96,
+                        executionId: 1 + i,
+                        baseBalancePerShareX96: Q96.div(1 + i),
                     }
                 }),
                 expected: {
@@ -140,7 +178,7 @@ describe("PerpdexExchange limitOrder", () => {
                     expect(await market.getLimitOrderInfo(order.isBid, id)).to.deep.eq([order.base, order.priceX96])
                     const exec = await market.getLimitOrderExecution(order.isBid, id)
                     if (order.executionId > 0) {
-                        const quote = order.priceX96.mul(order.base).div(Q96)
+                        const quote = order.priceX96.mul(order.base).div(Q96).mul(order.baseBalancePerShareX96).div(Q96)
                         expect(exec).to.deep.eq([order.executionId, order.base, quote])
                     } else {
                         expect(exec).to.deep.eq([0, 0, 0])

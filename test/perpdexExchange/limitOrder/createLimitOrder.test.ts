@@ -20,6 +20,11 @@ describe("PerpdexExchange limitOrder", () => {
         expect((await exchange.accountInfos(alice.address)).limitOrderCount).to.eq(expected)
     }
 
+    const assertTotalBase = async expected => {
+        const info = await exchange.getLimitOrderInfo(alice.address, market.address)
+        expect(info.slice(2, 4)).to.deep.eq(expected)
+    }
+
     const assertMarkets = async expected => {
         expect(await exchange.getAccountMarkets(alice.address)).to.deep.eq(expected)
     }
@@ -70,6 +75,7 @@ describe("PerpdexExchange limitOrder", () => {
                 .withArgs(alice.address, market.address, false, 1, Q96, 1)
 
             await assertLimitOrderCount(2)
+            await assertTotalBase([1, 1])
             await assertMarkets([market.address])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([1])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([1])
@@ -123,6 +129,7 @@ describe("PerpdexExchange limitOrder", () => {
                 .withArgs(alice.address, market.address, false, 1, Q96, 2)
 
             await assertLimitOrderCount(4)
+            await assertTotalBase([2, 2])
             await assertMarkets([market.address])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([1, 2])
             expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([1, 2])
