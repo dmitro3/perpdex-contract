@@ -63,6 +63,11 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         address trader = _msgSender();
         _settleLimitOrders(trader);
 
+        uint256 compensation = VaultLibrary.compensate(accountInfos[trader], insuranceFundInfo);
+        if (compensation != 0) {
+            emit CollateralCompensated(trader, compensation);
+        }
+
         if (settlementToken == address(0)) {
             require(amount == 0, "PE_D: amount not zero");
             VaultLibrary.depositEth(accountInfos[trader], msg.value);

@@ -347,7 +347,7 @@ library TakerLibrary {
 
         vaultInfo.collateralBalance = vaultInfo.collateralBalance.sub(penalty.toInt256());
         liquidatorVaultInfo.collateralBalance = liquidatorVaultInfo.collateralBalance.add(liquidationReward.toInt256());
-        insuranceFundInfo.balance = insuranceFundInfo.balance.add(insuranceFundReward.toInt256());
+        insuranceFundInfo.balance = insuranceFundInfo.balance.add(insuranceFundReward);
     }
 
     function _smoothLiquidationReward(

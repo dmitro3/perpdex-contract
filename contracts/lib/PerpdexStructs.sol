@@ -41,7 +41,7 @@ library PerpdexStructs {
     }
 
     struct InsuranceFundInfo {
-        int256 balance;
+        uint256 balance; // for easy calculation
         uint256 liquidationRewardBalance;
     }
 

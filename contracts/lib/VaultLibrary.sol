@@ -31,6 +31,18 @@ library VaultLibrary {
         uint24 imRatio;
     }
 
+    function compensate(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        PerpdexStructs.InsuranceFundInfo storage insuranceFundInfo
+    ) external returns (uint256 compensation) {
+        if (accountInfo.markets.length != 0) return 0;
+        if (accountInfo.vaultInfo.collateralBalance >= 0) return 0;
+        compensation = accountInfo.vaultInfo.collateralBalance.abs();
+        require(insuranceFundInfo.balance >= compensation, "VL_Z: insurance fund empty");
+        accountInfo.vaultInfo.collateralBalance += compensation.toInt256();
+        insuranceFundInfo.balance -= compensation;
+    }
+
     function deposit(PerpdexStructs.AccountInfo storage accountInfo, DepositParams memory params) external {
         require(params.amount > 0, "VL_D: zero amount");
         _transferTokenIn(params.settlementToken, params.from, params.amount);

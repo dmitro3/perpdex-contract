@@ -66,6 +66,7 @@ interface IPerpdexExchange {
         uint256 deadline;
     }
 
+    event CollateralCompensated(address indexed trader, uint256 amount);
     event Deposited(address indexed trader, uint256 amount);
     event Withdrawn(address indexed trader, uint256 amount);
     event ProtocolFeeTransferred(address indexed trader, uint256 amount);
@@ -201,7 +202,7 @@ interface IPerpdexExchange {
         view
         returns (PerpdexStructs.VaultInfo memory, uint8 limitOrderCount);
 
-    function insuranceFundInfo() external view returns (int256 balance, uint256 liquidationRewardBalance);
+    function insuranceFundInfo() external view returns (uint256 balance, uint256 liquidationRewardBalance);
 
     function protocolInfo() external view returns (uint256 protocolFee);
 
