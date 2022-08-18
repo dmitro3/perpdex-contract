@@ -63,7 +63,7 @@ library TakerLibrary {
         PerpdexStructs.ProtocolInfo storage protocolInfo,
         TradeParams memory params
     ) internal returns (TradeResponse memory response) {
-        response.isLiquidation = _validateTrade(accountInfo, params.market, params.isSelf, params.mmRatio);
+        response.isLiquidation = _validateTrade(accountInfo, params.market, params.isSelf, params.mmRatio, false);
 
         int256 takerBaseBefore = accountInfo.takerInfos[params.market].baseBalanceShare;
 
@@ -128,13 +128,16 @@ library TakerLibrary {
 
     // Even if trade reverts, it may not revert.
     // Attempting to match reverts makes the implementation too complicated
-    // ignore initial margin check and close only check when liquidation
+    // ignored checks when liquidation:
+    // - initial margin
+    // - close only
+    // - maker and limit order existence
     function previewTrade(PerpdexStructs.AccountInfo storage accountInfo, PreviewTradeParams memory params)
         internal
         view
         returns (uint256 oppositeAmount)
     {
-        bool isLiquidation = _validateTrade(accountInfo, params.market, params.isSelf, params.mmRatio);
+        bool isLiquidation = _validateTrade(accountInfo, params.market, params.isSelf, params.mmRatio, true);
 
         oppositeAmount;
         if (params.protocolFeeRatio == 0) {
@@ -157,7 +160,10 @@ library TakerLibrary {
         validateSlippage(params.isExactInput, oppositeAmount, params.oppositeAmountBound);
     }
 
-    // ignore initial margin check and close only check when liquidation
+    // ignored checks when liquidation:
+    // - initial margin
+    // - close only
+    // - maker and limit order existence
     function maxTrade(
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
@@ -170,15 +176,6 @@ library TakerLibrary {
         bool isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, mmRatio);
 
         if (!isSelf && !isLiquidation) {
-            return 0;
-        }
-
-        if (
-            isLiquidation &&
-            (accountInfo.makerInfos[market].liquidity != 0 ||
-                accountInfo.limitOrderInfos[market].ask.root != 0 ||
-                accountInfo.limitOrderInfos[market].bid.root != 0)
-        ) {
             return 0;
         }
 
@@ -442,7 +439,8 @@ library TakerLibrary {
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         bool isSelf,
-        uint24 mmRatio
+        uint24 mmRatio,
+        bool ignoreMakerOrderBookExistence
     ) private view returns (bool isLiquidation) {
         isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, mmRatio);
 
@@ -450,7 +448,7 @@ library TakerLibrary {
             require(isLiquidation, "TL_VT: enough mm");
         }
 
-        if (isLiquidation) {
+        if (!ignoreMakerOrderBookExistence && isLiquidation) {
             require(accountInfo.makerInfos[market].liquidity == 0, "TL_VT: no maker when liquidation");
             require(accountInfo.limitOrderInfos[market].ask.root == 0, "TL_VT: no ask when liquidation");
             require(accountInfo.limitOrderInfos[market].bid.root == 0, "TL_VT: no bid when liquidation");

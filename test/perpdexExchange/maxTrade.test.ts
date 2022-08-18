@@ -133,7 +133,7 @@ describe("PerpdexExchange maxTrade", () => {
                 maxAmount: 0,
             },
             {
-                title: "not liquidatable because maker position exist",
+                title: "ignore condition not liquidatable because maker position exist",
                 notSelf: true,
                 isBaseToQuote: false,
                 isExactInput: true,
@@ -148,7 +148,7 @@ describe("PerpdexExchange maxTrade", () => {
                     cumBaseSharePerLiquidityX96: Q96,
                     cumQuotePerLiquidityX96: Q96,
                 },
-                maxAmount: 0,
+                maxAmount: 488,
             },
             {
                 title: "ignore condition that open is not allowed when liquidation",
