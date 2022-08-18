@@ -23,13 +23,6 @@ const config: HardhatUserConfig = {
         version: "0.8.12",
         settings: {
             optimizer: { enabled: true, runs: 100 },
-            evmVersion: "berlin",
-            // for smock to mock contracts
-            outputSelection: {
-                "*": {
-                    "*": ["storageLayout"],
-                },
-            },
         },
     },
     zksolc: {
