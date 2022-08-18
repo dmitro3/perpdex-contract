@@ -61,6 +61,7 @@ const config: HardhatUserConfig = {
             rinkeby: process.env.ETHERSCAN_API_KEY,
             polygonMumbai: process.env.POLYGONSCAN_API_KEY,
             polygon: process.env.POLYGONSCAN_API_KEY,
+            arbitrumTestnet: process.env.ARBISCAN_API_KEY,
         },
     },
     dependencyCompiler: {
