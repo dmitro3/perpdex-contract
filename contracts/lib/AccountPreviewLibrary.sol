@@ -23,46 +23,6 @@ library AccountPreviewLibrary {
     using SignedSafeMath for int256;
     using RBTreeLibrary for RBTreeLibrary.Tree;
 
-    function previewAddToTakerBalance(
-        PerpdexStructs.TakerInfo memory takerInfo,
-        int256 baseShare,
-        int256 quoteBalance,
-        int256 quoteFee
-    ) internal pure returns (PerpdexStructs.TakerInfo memory resultTakerInfo, int256 realizedPnl) {
-        if (baseShare != 0 || quoteBalance != 0) {
-            if (baseShare.sign() * quoteBalance.sign() != -1) {
-                // ignore invalid input
-                return (takerInfo, 0);
-            }
-            if (takerInfo.baseBalanceShare.sign() * baseShare.sign() == -1) {
-                uint256 baseAbs = baseShare.abs();
-                uint256 takerBaseAbs = takerInfo.baseBalanceShare.abs();
-
-                if (baseAbs <= takerBaseAbs) {
-                    int256 reducedOpenNotional = takerInfo.quoteBalance.mulDiv(baseAbs.toInt256(), takerBaseAbs);
-                    realizedPnl = quoteBalance.add(reducedOpenNotional);
-                } else {
-                    int256 closedPositionNotional = quoteBalance.mulDiv(takerBaseAbs.toInt256(), baseAbs);
-                    realizedPnl = takerInfo.quoteBalance.add(closedPositionNotional);
-                }
-            }
-        }
-        realizedPnl = realizedPnl.add(quoteFee);
-
-        int256 newBaseBalanceShare = takerInfo.baseBalanceShare.add(baseShare);
-        int256 newQuoteBalance = takerInfo.quoteBalance.add(quoteBalance).add(quoteFee).sub(realizedPnl);
-        if (
-            !((newBaseBalanceShare == 0 && newQuoteBalance == 0) ||
-                newBaseBalanceShare.sign() * newQuoteBalance.sign() == -1)
-        ) {
-            // never occur. ignore
-            return (takerInfo, 0);
-        }
-
-        resultTakerInfo.baseBalanceShare = newBaseBalanceShare;
-        resultTakerInfo.quoteBalance = newQuoteBalance;
-    }
-
     struct Execution {
         int256 executedBase;
         int256 executedQuote;
@@ -188,5 +148,45 @@ library AccountPreviewLibrary {
                 totalExecutedBaseAsk += executions[i].executedBase.abs();
             }
         }
+    }
+
+    function previewAddToTakerBalance(
+        PerpdexStructs.TakerInfo memory takerInfo,
+        int256 baseShare,
+        int256 quoteBalance,
+        int256 quoteFee
+    ) internal pure returns (PerpdexStructs.TakerInfo memory resultTakerInfo, int256 realizedPnl) {
+        if (baseShare != 0 || quoteBalance != 0) {
+            if (baseShare.sign() * quoteBalance.sign() != -1) {
+                // ignore invalid input
+                return (takerInfo, 0);
+            }
+            if (takerInfo.baseBalanceShare.sign() * baseShare.sign() == -1) {
+                uint256 baseAbs = baseShare.abs();
+                uint256 takerBaseAbs = takerInfo.baseBalanceShare.abs();
+
+                if (baseAbs <= takerBaseAbs) {
+                    int256 reducedOpenNotional = takerInfo.quoteBalance.mulDiv(baseAbs.toInt256(), takerBaseAbs);
+                    realizedPnl = quoteBalance.add(reducedOpenNotional);
+                } else {
+                    int256 closedPositionNotional = quoteBalance.mulDiv(takerBaseAbs.toInt256(), baseAbs);
+                    realizedPnl = takerInfo.quoteBalance.add(closedPositionNotional);
+                }
+            }
+        }
+        realizedPnl = realizedPnl.add(quoteFee);
+
+        int256 newBaseBalanceShare = takerInfo.baseBalanceShare.add(baseShare);
+        int256 newQuoteBalance = takerInfo.quoteBalance.add(quoteBalance).add(quoteFee).sub(realizedPnl);
+        if (
+            !((newBaseBalanceShare == 0 && newQuoteBalance == 0) ||
+                newBaseBalanceShare.sign() * newQuoteBalance.sign() == -1)
+        ) {
+            // never occur. ignore
+            return (takerInfo, 0);
+        }
+
+        resultTakerInfo.baseBalanceShare = newBaseBalanceShare;
+        resultTakerInfo.quoteBalance = newQuoteBalance;
     }
 }

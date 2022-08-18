@@ -56,6 +56,18 @@ library TakerLibrary {
         IPerpdexMarketMinimum.SwapResponse rawResponse;
     }
 
+    // to avoid stack too deep
+    struct DoSwapParams {
+        address market;
+        bool isBaseToQuote;
+        bool isExactInput;
+        uint256 amount;
+        uint256 oppositeAmountBound;
+        uint8 maxMarketsPerAccount;
+        uint24 protocolFeeRatio;
+        bool isLiquidation;
+    }
+
     function trade(
         PerpdexStructs.AccountInfo storage accountInfo,
         PerpdexStructs.VaultInfo storage liquidatorVaultInfo,
@@ -184,18 +196,6 @@ library TakerLibrary {
         } else {
             amount = maxSwapWithProtocolFee(market, isBaseToQuote, isExactInput, protocolFeeRatio, isLiquidation);
         }
-    }
-
-    // to avoid stack too deep
-    struct DoSwapParams {
-        address market;
-        bool isBaseToQuote;
-        bool isExactInput;
-        uint256 amount;
-        uint256 oppositeAmountBound;
-        uint8 maxMarketsPerAccount;
-        uint24 protocolFeeRatio;
-        bool isLiquidation;
     }
 
     function _doSwap(
