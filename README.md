@@ -36,6 +36,12 @@ npx hardhat deploy --network rinkeby
 ## verify
 
 ```bash
+npx hardhat run script/verify.ts --network rinkeby
+```
+
+### old method
+
+```bash
 npx hardhat etherscan-verify --network rinkeby --force-license --license GPL-3.0
 ```
 
