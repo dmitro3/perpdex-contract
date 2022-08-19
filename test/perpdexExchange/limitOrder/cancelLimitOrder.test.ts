@@ -3,6 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexMarket, TestPerpdexExchange } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../fixtures"
 import { BigNumber, Wallet } from "ethers"
+import { MarketStatus } from "../../helper/types"
 
 describe("PerpdexExchange limitOrder", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -284,6 +285,30 @@ describe("PerpdexExchange limitOrder", () => {
                     deadline: deadline,
                 }),
             ).to.revertedWith("PE_CLO: order not exist")
+        })
+
+        it("market not allowed", async () => {
+            await exchange.setMarketStatusForce(market.address, MarketStatus.NotAllowed)
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    orderId: 1,
+                    deadline: deadline,
+                }),
+            ).to.revertedWith("PE_CMO: market not open")
+        })
+
+        it("market closed", async () => {
+            await exchange.setMarketStatusForce(market.address, MarketStatus.Closed)
+            await expect(
+                exchange.connect(alice).cancelLimitOrder({
+                    market: market.address,
+                    isBid: true,
+                    orderId: 1,
+                    deadline: deadline,
+                }),
+            ).to.revertedWith("PE_CMO: market not open")
         })
 
         it("not liquidatable", async () => {

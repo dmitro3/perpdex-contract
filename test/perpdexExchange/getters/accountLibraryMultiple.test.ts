@@ -3,6 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../fixtures"
 import { BigNumber, Wallet } from "ethers"
+import { MarketStatus } from "../../helper/types"
 
 describe("PerpdexExchange getters", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -20,6 +21,7 @@ describe("PerpdexExchange getters", () => {
         fixture = await loadFixture(
             createPerpdexExchangeFixture({
                 marketCount: 2,
+                isMarketAllowed: true,
             }),
         )
         exchange = fixture.perpdexExchange
@@ -355,6 +357,62 @@ describe("PerpdexExchange getters", () => {
                 hasEnoughInitialMargin: false,
                 isLiquidationFree: false,
             },
+            {
+                title: "long profit + closeMarket",
+                collateralBalance: 100,
+                takerInfos: [
+                    {
+                        baseBalanceShare: 25,
+                        quoteBalance: -90,
+                    },
+                    {
+                        baseBalanceShare: 30,
+                        quoteBalance: -100,
+                    },
+                ],
+                makerInfos: [
+                    {
+                        liquidity: 0,
+                        cumBaseSharePerLiquidityX96: 0,
+                        cumQuotePerLiquidityX96: 0,
+                    },
+                    {
+                        liquidity: 0,
+                        cumBaseSharePerLiquidityX96: 0,
+                        cumQuotePerLiquidityX96: 0,
+                    },
+                ],
+                poolInfos: [
+                    {
+                        base: 10000,
+                        quote: 40000,
+                        totalLiquidity: 20000,
+                        cumBasePerLiquidityX96: 0,
+                        cumQuotePerLiquidityX96: 0,
+                        baseBalancePerShareX96: Q96,
+                    },
+                    {
+                        base: 10000,
+                        quote: 40000,
+                        totalLiquidity: 20000,
+                        cumBasePerLiquidityX96: 0,
+                        cumQuotePerLiquidityX96: 0,
+                        baseBalancePerShareX96: Q96,
+                    },
+                ],
+                closeMarket: [true, false],
+                getCollateralBalance: 110,
+                totalAccountValue: 130,
+                positionShares: [25, 30],
+                positionNotionals: [100, 120],
+                totalPositionNotional: 120,
+                openPositionShares: [25, 30],
+                openPositionNotionals: [100, 120],
+                totalOpenPositionNotional: 120,
+                hasEnoughMaintenanceMargin: true,
+                hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
+            },
         ].forEach(test => {
             it(test.title, async () => {
                 await exchange.connect(owner).setImRatio(10e4)
@@ -372,6 +430,10 @@ describe("PerpdexExchange getters", () => {
                     await exchange.setTakerInfo(alice.address, markets[i].address, test.takerInfos[i])
                     await exchange.setMakerInfo(alice.address, markets[i].address, test.makerInfos[i])
                     await markets[i].setPoolInfo(test.poolInfos[i])
+                    if (test.closeMarket?.[i]) {
+                        await exchange.connect(owner).setMarketStatus(markets[i].address, MarketStatus.Closed)
+                        await exchange.connect(alice).closeMarket(markets[i].address)
+                    }
                 }
 
                 for (let i = 0; i < markets.length; i++) {
@@ -389,6 +451,9 @@ describe("PerpdexExchange getters", () => {
                     )
                 }
 
+                expect(await exchange.getCollateralBalance(alice.address)).to.eq(
+                    test.getCollateralBalance || test.collateralBalance,
+                )
                 expect(await exchange.getTotalAccountValue(alice.address)).to.eq(test.totalAccountValue)
                 expect(await exchange.getTotalPositionNotional(alice.address)).to.eq(test.totalPositionNotional)
                 expect(await exchange.getTotalOpenPositionNotional(alice.address)).to.eq(test.totalOpenPositionNotional)

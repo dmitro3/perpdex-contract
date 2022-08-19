@@ -3,6 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../fixtures"
 import { BigNumber, Wallet } from "ethers"
+import { MarketStatus } from "../../helper/types"
 
 describe("PerpdexExchange getters", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -16,7 +17,11 @@ describe("PerpdexExchange getters", () => {
     const Q96 = BigNumber.from(2).pow(96)
 
     beforeEach(async () => {
-        fixture = await loadFixture(createPerpdexExchangeFixture())
+        fixture = await loadFixture(
+            createPerpdexExchangeFixture({
+                isMarketAllowed: true,
+            }),
+        )
         exchange = fixture.perpdexExchange
         market = fixture.perpdexMarket
         owner = fixture.owner
@@ -386,6 +391,35 @@ describe("PerpdexExchange getters", () => {
                 hasEnoughMaintenanceMargin: true,
                 hasEnoughInitialMargin: true,
                 isLiquidationFree: false,
+            },
+            {
+                title: "maker long + closeMarket",
+                collateralBalance: 100,
+                makerInfo: {
+                    liquidity: 50,
+                    cumBaseSharePerLiquidityX96: Q96.div(2), // debt 25
+                    cumQuotePerLiquidityX96: Q96.mul(2), // debt 100
+                },
+                poolInfo: {
+                    base: 20000,
+                    quote: 20000,
+                    totalLiquidity: 20000,
+                    cumBasePerLiquidityX96: 0,
+                    cumQuotePerLiquidityX96: 0,
+                    baseBalancePerShareX96: Q96,
+                },
+                closeMarket: true,
+                getCollateralBalance: 75,
+                totalAccountValue: 75,
+                positionShare: 25,
+                positionNotional: 25,
+                totalPositionNotional: 0,
+                openPositionShare: 75,
+                openPositionNotional: 75,
+                totalOpenPositionNotional: 0,
+                hasEnoughMaintenanceMargin: true,
+                hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
             },
             {
                 title: "maker long rebase",
@@ -880,6 +914,72 @@ describe("PerpdexExchange getters", () => {
                 isLiquidationFree: false,
             },
             {
+                // TODO: separate closeMarket test
+                title: "multiple orders + closeMarket",
+                collateralBalance: 100,
+                poolInfo: {
+                    base: 10000,
+                    quote: 40000,
+                    totalLiquidity: 20000,
+                    cumBasePerLiquidityX96: 0,
+                    cumQuotePerLiquidityX96: 0,
+                    baseBalancePerShareX96: Q96,
+                },
+                orders: [
+                    {
+                        isBid: true,
+                        base: 100,
+                        priceX96: Q96,
+                        executionId: 1,
+                        baseBalancePerShareX96: Q96.div(2),
+                    },
+                    {
+                        isBid: false,
+                        base: 100,
+                        priceX96: Q96.mul(5),
+                        executionId: 2,
+                        baseBalancePerShareX96: Q96.mul(2),
+                    },
+                    {
+                        isBid: true,
+                        base: 100,
+                        priceX96: Q96,
+                        executionId: 3,
+                        baseBalancePerShareX96: Q96,
+                    },
+                    {
+                        isBid: false,
+                        base: 50,
+                        priceX96: Q96.mul(5),
+                        executionId: 4,
+                        baseBalancePerShareX96: Q96,
+                    },
+                    {
+                        isBid: true,
+                        base: 50,
+                        priceX96: Q96,
+                        executionId: 0,
+                        baseBalancePerShareX96: Q96,
+                    },
+                ],
+                closeMarket: true,
+                getTakerInfoLazy: {
+                    baseBalanceShare: 50,
+                    quoteBalance: -50,
+                },
+                getCollateralBalance: 1400,
+                totalAccountValue: 1400,
+                positionShare: 50,
+                positionNotional: 200,
+                totalPositionNotional: 0,
+                openPositionShare: 100,
+                openPositionNotional: 400,
+                totalOpenPositionNotional: 0,
+                hasEnoughMaintenanceMargin: true,
+                hasEnoughInitialMargin: true,
+                isLiquidationFree: true,
+            },
+            {
                 title: "long + ask executed",
                 collateralBalance: 100,
                 takerInfo: {
@@ -1127,6 +1227,11 @@ describe("PerpdexExchange getters", () => {
                     if ((test.orders || []).length > 0) {
                         await exchange.connect(alice).createLimitOrdersForTest(test.orders, market.address)
                     }
+
+                    if (test.closeMarket) {
+                        await exchange.connect(owner).setMarketStatus(market.address, MarketStatus.Closed)
+                        await exchange.connect(alice).closeMarket(market.address)
+                    }
                 })
 
                 const assert = async () => {
@@ -1143,7 +1248,9 @@ describe("PerpdexExchange getters", () => {
                         test.positionNotional,
                     )
                     expect(await exchange.getTotalPositionNotional(alice.address)).to.eq(
-                        Math.abs(test.positionNotional),
+                        test.totalPositionNotional !== void 0
+                            ? test.totalPositionNotional
+                            : Math.abs(test.positionNotional),
                     )
                     expect(await exchange.getOpenPositionShare(alice.address, market.address)).to.eq(
                         test.openPositionShare,
@@ -1151,7 +1258,11 @@ describe("PerpdexExchange getters", () => {
                     expect(await exchange.getOpenPositionNotional(alice.address, market.address)).to.eq(
                         test.openPositionNotional,
                     )
-                    expect(await exchange.getTotalOpenPositionNotional(alice.address)).to.eq(test.openPositionNotional)
+                    expect(await exchange.getTotalOpenPositionNotional(alice.address)).to.eq(
+                        test.totalOpenPositionNotional !== void 0
+                            ? test.totalOpenPositionNotional
+                            : test.openPositionNotional,
+                    )
                     expect(await exchange.hasEnoughMaintenanceMargin(alice.address)).to.eq(
                         test.hasEnoughMaintenanceMargin,
                     )

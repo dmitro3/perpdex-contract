@@ -6,6 +6,8 @@ import {
 } from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 
 library PerpdexStructs {
+    enum MarketStatus { NotAllowed, Open, Closed }
+
     struct TakerInfo {
         int256 baseBalanceShare;
         int256 quoteBalance;

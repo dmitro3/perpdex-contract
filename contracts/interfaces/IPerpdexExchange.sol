@@ -151,7 +151,7 @@ interface IPerpdexExchange {
     event MmRatioChanged(uint24 value);
     event LiquidationRewardConfigChanged(uint24 rewardRatio, uint16 smoothEmaTime);
     event ProtocolFeeRatioChanged(uint24 value);
-    event IsMarketAllowedChanged(address indexed market, bool isMarketAllowed);
+    event MarketStatusChanged(address indexed market, PerpdexStructs.MarketStatus status);
 
     function deposit(uint256 amount) external payable;
 
@@ -187,7 +187,7 @@ interface IPerpdexExchange {
 
     function setProtocolFeeRatio(uint24 value) external;
 
-    function setIsMarketAllowed(address market, bool value) external;
+    function setMarketStatus(address market, PerpdexStructs.MarketStatus status) external;
 
     // dry run getters
 
@@ -220,7 +220,7 @@ interface IPerpdexExchange {
 
     function protocolFeeRatio() external view returns (uint24);
 
-    function isMarketAllowed(address market) external view returns (bool);
+    function marketStatuses(address market) external view returns (PerpdexStructs.MarketStatus status);
 
     // getters not covered by default getters
 

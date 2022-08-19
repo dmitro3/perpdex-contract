@@ -5,6 +5,7 @@ import { createPerpdexExchangeFixture } from "./fixtures"
 import { Wallet } from "ethers"
 import { MockContract } from "ethereum-waffle"
 import IPerpdexMarketJson from "../../artifacts/contracts/interfaces/IPerpdexMarket.sol/IPerpdexMarket.json"
+import { MarketStatus } from "../helper/types"
 
 describe("PerpdexExchange config", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -195,31 +196,58 @@ describe("PerpdexExchange config", () => {
         })
     })
 
-    describe("setIsMarketAllowed", () => {
-        it("enable", async () => {
-            await expect(exchange.connect(owner).setIsMarketAllowed(market.address, true))
-                .to.emit(exchange, "IsMarketAllowedChanged")
-                .withArgs(market.address, true)
-            expect(await exchange.isMarketAllowed(market.address)).to.eq(true)
+    describe("setMarketStatus", () => {
+        it("open", async () => {
+            await expect(exchange.connect(owner).setMarketStatus(market.address, MarketStatus.Open))
+                .to.emit(exchange, "MarketStatusChanged")
+                .withArgs(market.address, MarketStatus.Open)
+            expect(await exchange.marketStatuses(market.address)).to.eq(MarketStatus.Open)
         })
 
-        it("disable", async () => {
-            await exchange.connect(owner).setIsMarketAllowed(market.address, true)
+        it("close", async () => {
+            await exchange.connect(owner).setMarketStatus(market.address, MarketStatus.Open)
 
-            await expect(exchange.connect(owner).setIsMarketAllowed(market.address, false))
-                .to.emit(exchange, "IsMarketAllowedChanged")
-                .withArgs(market.address, false)
-            expect(await exchange.isMarketAllowed(market.address)).to.eq(false)
+            await expect(exchange.connect(owner).setMarketStatus(market.address, MarketStatus.Closed))
+                .to.emit(exchange, "MarketStatusChanged")
+                .withArgs(market.address, MarketStatus.Closed)
+            expect(await exchange.marketStatuses(market.address)).to.eq(MarketStatus.Closed)
+        })
+
+        it("revert when NotAllowed -> Closed", async () => {
+            await expect(
+                exchange.connect(owner).setMarketStatus(market.address, MarketStatus.Closed),
+            ).to.be.revertedWith("PE_CMO: market not open")
+        })
+
+        it("revert when Open -> NotAllowed", async () => {
+            await exchange.setMarketStatusForce(market.address, MarketStatus.Open)
+            await expect(
+                exchange.connect(owner).setMarketStatus(market.address, MarketStatus.NotAllowed),
+            ).to.be.revertedWith("PE_SIMA: invalid status")
+        })
+
+        it("revert when Closed -> NotAllowed", async () => {
+            await exchange.setMarketStatusForce(market.address, MarketStatus.Closed)
+            await expect(
+                exchange.connect(owner).setMarketStatus(market.address, MarketStatus.NotAllowed),
+            ).to.be.revertedWith("PE_SIMA: invalid status")
+        })
+
+        it("revert when Closed -> Open", async () => {
+            await exchange.setMarketStatusForce(market.address, MarketStatus.Closed)
+            await expect(exchange.connect(owner).setMarketStatus(market.address, MarketStatus.Open)).to.be.revertedWith(
+                "PE_SIMA: market closed",
+            )
         })
 
         it("revert when not owner", async () => {
-            await expect(exchange.connect(alice).setIsMarketAllowed(market.address, true)).to.be.revertedWith(
+            await expect(exchange.connect(alice).setMarketStatus(market.address, MarketStatus.Open)).to.be.revertedWith(
                 "Ownable: caller is not the owner",
             )
         })
 
         it("revert when invalid address", async () => {
-            await expect(exchange.connect(owner).setIsMarketAllowed(alice.address, true)).to.be.revertedWith(
+            await expect(exchange.connect(owner).setMarketStatus(alice.address, MarketStatus.Open)).to.be.revertedWith(
                 "PE_SIMA: market address invalid",
             )
         })
@@ -232,19 +260,21 @@ describe("PerpdexExchange config", () => {
                 await marketDifferentExchange.mock.exchange.returns(alice.address)
             })
 
-            it("revert when enable", async () => {
+            it("revert when open", async () => {
                 await expect(
-                    exchange.connect(owner).setIsMarketAllowed(marketDifferentExchange.address, true),
+                    exchange.connect(owner).setMarketStatus(marketDifferentExchange.address, MarketStatus.Open),
                 ).to.revertedWith("PE_SIMA: different exchange")
             })
 
             it("not revert when disable", async () => {
-                await exchange.connect(owner).setIsMarketAllowedForce(marketDifferentExchange.address, true)
+                await exchange.connect(owner).setMarketStatusForce(marketDifferentExchange.address, MarketStatus.Open)
 
-                await expect(exchange.connect(owner).setIsMarketAllowed(marketDifferentExchange.address, false))
-                    .to.emit(exchange, "IsMarketAllowedChanged")
-                    .withArgs(marketDifferentExchange.address, false)
-                expect(await exchange.isMarketAllowed(marketDifferentExchange.address)).to.eq(false)
+                await expect(
+                    exchange.connect(owner).setMarketStatus(marketDifferentExchange.address, MarketStatus.Closed),
+                )
+                    .to.emit(exchange, "MarketStatusChanged")
+                    .withArgs(marketDifferentExchange.address, MarketStatus.Closed)
+                expect(await exchange.marketStatuses(marketDifferentExchange.address)).to.eq(MarketStatus.Closed)
             })
         })
     })

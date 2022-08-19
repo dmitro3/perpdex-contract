@@ -51,23 +51,15 @@ library AccountLibrary {
                 accountInfo.makerInfos[market].liquidity != 0 ||
                 accountInfo.limitOrderInfos[market].ask.root != 0 ||
                 accountInfo.limitOrderInfos[market].bid.root != 0;
-        address[] storage markets = accountInfo.markets;
-        uint256 length = markets.length;
 
-        for (uint256 i = 0; i < length; ++i) {
-            if (markets[i] == market) {
-                if (!enabled) {
-                    markets[i] = markets[length - 1];
-                    markets.pop();
-                }
-                return;
-            }
-        }
+        _setMarketEnabled(accountInfo, market, maxMarketsPerAccount, enabled);
+    }
 
-        if (!enabled) return;
-
-        require(length + 1 <= maxMarketsPerAccount, "AL_UP: too many markets");
-        markets.push(market);
+    function closeMarket(PerpdexStructs.AccountInfo storage accountInfo, address market) external {
+        require(_marketExists(accountInfo, market), "AL_CM: market not exist");
+        CalcMarketResponse memory response = _calcMarket(accountInfo, market);
+        accountInfo.vaultInfo.collateralBalance += response.positionValue + response.realizedPnl;
+        _setMarketEnabled(accountInfo, market, 0, false);
     }
 
     function getTakerInfo(PerpdexStructs.AccountInfo storage accountInfo, address market)
@@ -156,6 +148,31 @@ library AccountLibrary {
 
     function isLiquidationFree(PerpdexStructs.AccountInfo storage accountInfo) external view returns (bool) {
         return _calcTotal(accountInfo).isLiquidationFree;
+    }
+
+    function _setMarketEnabled(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        uint8 maxMarketsPerAccount,
+        bool enabled
+    ) private {
+        address[] storage markets = accountInfo.markets;
+        uint256 length = markets.length;
+
+        for (uint256 i = 0; i < length; ++i) {
+            if (markets[i] == market) {
+                if (!enabled) {
+                    markets[i] = markets[length - 1];
+                    markets.pop();
+                }
+                return;
+            }
+        }
+
+        if (!enabled) return;
+
+        require(length + 1 <= maxMarketsPerAccount, "AL_UP: too many markets");
+        markets.push(market);
     }
 
     function _calcMarket(PerpdexStructs.AccountInfo storage accountInfo, address market)
@@ -255,5 +272,16 @@ library AccountLibrary {
         response.isLiquidationFree =
             response.isLiquidationFree &&
             quoteBalanceWithoutPool.add(response.collateralBalance) >= 0;
+    }
+
+    function _marketExists(PerpdexStructs.AccountInfo storage accountInfo, address market) private view returns (bool) {
+        address[] storage markets = accountInfo.markets;
+        uint256 length = markets.length;
+        for (uint256 i = 0; i < length; ++i) {
+            if (markets[i] == market) {
+                return true;
+            }
+        }
+        return false;
     }
 }

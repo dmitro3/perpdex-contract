@@ -24,6 +24,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     })
     const accountLibrary = await deployments.get("AccountLibrary")
 
+    await deploy("MakerLibrary", {
+        from: deployer,
+        log: true,
+        autoMine: true,
+        libraries: {
+            AccountLibrary: accountLibrary.address,
+        },
+    })
+    const makerLibrary = await deployments.get("MakerLibrary")
+
     await deploy("MakerOrderBookLibrary", {
         from: deployer,
         log: true,
@@ -53,6 +63,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             autoMine: true,
             libraries: {
                 AccountLibrary: accountLibrary.address,
+                MakerLibrary: makerLibrary.address,
                 MakerOrderBookLibrary: makerOrderBookLibrary.address,
                 VaultLibrary: vaultLibrary.address,
             },

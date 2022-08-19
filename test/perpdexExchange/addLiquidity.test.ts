@@ -5,6 +5,7 @@ import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, Wallet } from "ethers"
 import { MockContract } from "ethereum-waffle"
 import { getTimestamp, setNextTimestamp } from "../helper/time"
+import { MarketStatus } from "../helper/types"
 
 describe("PerpdexExchange addLiquidity", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -273,8 +274,27 @@ describe("PerpdexExchange addLiquidity", () => {
                     cumBaseSharePerLiquidityX96: 0,
                     cumQuotePerLiquidityX96: 0,
                 },
-                isMarketAllowed: false,
-                revertedWith: "PE_CMA: market not allowed",
+                marketStatus: MarketStatus.NotAllowed,
+                revertedWith: "PE_CMO: market not open",
+            },
+            {
+                title: "market closed",
+                base: 100,
+                quote: 200,
+                minBase: 0,
+                minQuote: 0,
+                collateralBalance: 100,
+                takerInfo: {
+                    baseBalanceShare: 0,
+                    quoteBalance: 0,
+                },
+                makerInfo: {
+                    liquidity: 0,
+                    cumBaseSharePerLiquidityX96: 0,
+                    cumQuotePerLiquidityX96: 0,
+                },
+                marketStatus: MarketStatus.Closed,
+                revertedWith: "PE_CMO: market not open",
             },
             {
                 title: "not enough im",
@@ -343,8 +363,8 @@ describe("PerpdexExchange addLiquidity", () => {
                 await exchange.setTakerInfo(alice.address, market.address, test.takerInfo)
                 await exchange.setMakerInfo(alice.address, market.address, test.makerInfo)
 
-                if (test.isMarketAllowed !== void 0) {
-                    await exchange.connect(owner).setIsMarketAllowed(market.address, test.isMarketAllowed)
+                if (test.marketStatus !== void 0) {
+                    await exchange.connect(owner).setMarketStatusForce(market.address, test.marketStatus)
                 }
 
                 if (test.poolInfo) {

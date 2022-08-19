@@ -3,6 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../typechain"
 import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, Wallet } from "ethers"
+import { MarketStatus } from "../helper/types"
 
 describe("PerpdexExchange maxTrade", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -164,8 +165,21 @@ describe("PerpdexExchange maxTrade", () => {
                 maxAmount: 488,
             },
             {
+                title: "open is not allowed when market disallowed",
+                marketStatus: MarketStatus.NotAllowed,
+                isBaseToQuote: false,
+                isExactInput: true,
+                protocolFeeRatio: 0,
+                collateralBalance: 100,
+                takerInfo: {
+                    baseBalanceShare: 0,
+                    quoteBalance: 0,
+                },
+                maxAmount: 0,
+            },
+            {
                 title: "open is not allowed when market closed",
-                isMarketAllowed: false,
+                marketStatus: MarketStatus.Closed,
                 isBaseToQuote: false,
                 isExactInput: true,
                 protocolFeeRatio: 0,
@@ -232,8 +246,8 @@ describe("PerpdexExchange maxTrade", () => {
                         await exchange.setMakerInfo(alice.address, market.address, test.makerInfo)
                     }
 
-                    if (test.isMarketAllowed !== void 0) {
-                        await exchange.connect(owner).setIsMarketAllowed(market.address, test.isMarketAllowed)
+                    if (test.marketStatus !== void 0) {
+                        await exchange.connect(owner).setMarketStatusForce(market.address, test.marketStatus)
                     }
                 })
 

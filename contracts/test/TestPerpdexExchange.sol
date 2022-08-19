@@ -43,8 +43,8 @@ contract TestPerpdexExchange is PerpdexExchange {
         protocolInfo = protocolInfoArg;
     }
 
-    function setIsMarketAllowedForce(address market, bool value) external {
-        isMarketAllowed[market] = value;
+    function setMarketStatusForce(address market, PerpdexStructs.MarketStatus status) external {
+        marketStatuses[market] = status;
     }
 
     function settleLimitOrders(address trader) external {

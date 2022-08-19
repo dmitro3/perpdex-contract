@@ -55,7 +55,7 @@ library MakerLibrary {
     }
 
     function addLiquidity(PerpdexStructs.AccountInfo storage accountInfo, AddLiquidityParams memory params)
-        internal
+        external
         returns (AddLiquidityResponse memory response)
     {
         PerpdexStructs.MakerInfo storage makerInfo = accountInfo.makerInfos[params.market];
@@ -117,7 +117,7 @@ library MakerLibrary {
     }
 
     function removeLiquidity(PerpdexStructs.AccountInfo storage accountInfo, RemoveLiquidityParams memory params)
-        internal
+        external
         returns (RemoveLiquidityResponse memory response)
     {
         response.isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, params.mmRatio);

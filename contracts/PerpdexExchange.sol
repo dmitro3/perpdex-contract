@@ -41,15 +41,20 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     uint24 public protocolFeeRatio = 0;
     PerpdexStructs.LiquidationRewardConfig public liquidationRewardConfig =
         PerpdexStructs.LiquidationRewardConfig({ rewardRatio: 20e4, smoothEmaTime: 100 });
-    mapping(address => bool) public isMarketAllowed;
+    mapping(address => PerpdexStructs.MarketStatus) public marketStatuses;
 
     modifier checkDeadline(uint256 deadline) {
         _checkDeadline(deadline);
         _;
     }
 
-    modifier checkMarketAllowed(address market) {
-        _checkMarketAllowed(market);
+    modifier checkMarketOpen(address market) {
+        _checkMarketOpen(market);
+        _;
+    }
+
+    modifier checkMarketClosed(address market) {
+        _checkMarketClosed(market);
         _;
     }
 
@@ -109,7 +114,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         external
         nonReentrant
         checkDeadline(params.deadline)
-        checkMarketAllowed(params.market)
+        checkMarketOpen(params.market)
         returns (uint256 oppositeAmount)
     {
         _settleLimitOrders(params.trader);
@@ -175,7 +180,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         external
         nonReentrant
         checkDeadline(params.deadline)
-        checkMarketAllowed(params.market)
+        checkMarketOpen(params.market)
         returns (
             uint256 base,
             uint256 quote,
@@ -217,7 +222,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         external
         nonReentrant
         checkDeadline(params.deadline)
-        checkMarketAllowed(params.market)
+        checkMarketOpen(params.market)
         returns (uint256 base, uint256 quote)
     {
         _settleLimitOrders(params.trader);
@@ -255,7 +260,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         external
         nonReentrant
         checkDeadline(params.deadline)
-        checkMarketAllowed(params.market)
+        checkMarketOpen(params.market)
         returns (uint40 orderId)
     {
         address trader = _msgSender();
@@ -282,7 +287,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         external
         nonReentrant
         checkDeadline(params.deadline)
-        checkMarketAllowed(params.market)
+        checkMarketOpen(params.market)
     {
         address trader = orderIdToTrader[params.market][params.isBid][params.orderId];
         require(trader != address(0), "PE_CLO: order not exist");
@@ -308,6 +313,12 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
             params.isBid,
             params.orderId
         );
+    }
+
+    function closeMarket(address market) external nonReentrant checkMarketClosed(market) {
+        address trader = _msgSender();
+        _settleLimitOrders(trader);
+        AccountLibrary.closeMarket(accountInfos[trader], market);
     }
 
     function _settleLimitOrders(address trader) internal {
@@ -355,13 +366,21 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         emit ProtocolFeeRatioChanged(value);
     }
 
-    function setIsMarketAllowed(address market, bool value) external onlyOwner nonReentrant {
-        require(market.isContract(), "PE_SIMA: market address invalid");
-        if (value) {
+    function setMarketStatus(address market, PerpdexStructs.MarketStatus status) external onlyOwner nonReentrant {
+        if (marketStatuses[market] == status) return;
+
+        if (status == PerpdexStructs.MarketStatus.Open) {
+            require(market.isContract(), "PE_SIMA: market address invalid");
             require(IPerpdexMarketMinimum(market).exchange() == address(this), "PE_SIMA: different exchange");
+            require(marketStatuses[market] == PerpdexStructs.MarketStatus.NotAllowed, "PE_SIMA: market closed");
+        } else if (status == PerpdexStructs.MarketStatus.Closed) {
+            _checkMarketOpen(market);
+        } else {
+            require(false, "PE_SIMA: invalid status");
         }
-        isMarketAllowed[market] = value;
-        emit IsMarketAllowedChanged(market, value);
+
+        marketStatuses[market] = status;
+        emit MarketStatusChanged(market, status);
     }
 
     // all raw information can be retrieved through getters (including default getters)
@@ -405,7 +424,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     function previewTrade(PreviewTradeParams calldata params)
         external
         view
-        checkMarketAllowed(params.market)
+        checkMarketOpen(params.market)
         returns (uint256 oppositeAmount)
     {
         address trader = params.trader;
@@ -428,7 +447,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     }
 
     function maxTrade(MaxTradeParams calldata params) external view returns (uint256 amount) {
-        if (!isMarketAllowed[params.market]) return 0;
+        if (marketStatuses[params.market] != PerpdexStructs.MarketStatus.Open) return 0;
 
         address trader = params.trader;
         address caller = params.caller;
@@ -525,7 +544,12 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     }
 
     // to reduce contract size
-    function _checkMarketAllowed(address market) private view {
-        require(isMarketAllowed[market], "PE_CMA: market not allowed");
+    function _checkMarketOpen(address market) private view {
+        require(marketStatuses[market] == PerpdexStructs.MarketStatus.Open, "PE_CMO: market not open");
+    }
+
+    // to reduce contract size
+    function _checkMarketClosed(address market) private view {
+        require(marketStatuses[market] == PerpdexStructs.MarketStatus.Closed, "PE_CMC: market not closed");
     }
 }

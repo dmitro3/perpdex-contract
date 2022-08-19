@@ -18,6 +18,7 @@ describe("PerpdexExchange constructor", () => {
         factory = await ethers.getContractFactory("PerpdexExchange", {
             libraries: {
                 AccountLibrary: fixture.accountLibrary.address,
+                MakerLibrary: fixture.makerLibrary.address,
                 MakerOrderBookLibrary: fixture.makerOrderBookLibrary.address,
                 VaultLibrary: fixture.vaultLibrary.address,
             },

@@ -3,6 +3,7 @@ import { TestPerpdexExchange, TestPerpdexMarket, TestERC20 } from "../../typecha
 import { BigNumber, Wallet } from "ethers"
 import IPerpdexPriceFeedJson from "../../artifacts/contracts/interfaces/IPerpdexPriceFeed.sol/IPerpdexPriceFeed.json"
 import { MockContract } from "ethereum-waffle"
+import { MarketStatus } from "../helper/types"
 
 export interface PerpdexExchangeFixture {
     perpdexExchange: TestPerpdexExchange
@@ -16,6 +17,7 @@ export interface PerpdexExchangeFixture {
     priceFeed: MockContract
     priceFeeds: MockContract[]
     accountLibrary: any
+    makerLibrary: any
     makerOrderBookLibrary: any
     vaultLibrary: any
 }
@@ -44,6 +46,12 @@ export function createPerpdexExchangeFixture(
         }
         const accountLibraryFactory = await ethers.getContractFactory("AccountLibrary")
         const accountLibrary = await accountLibraryFactory.deploy()
+        const makerLibraryFactory = await ethers.getContractFactory("MakerLibrary", {
+            libraries: {
+                AccountLibrary: accountLibrary.address,
+            },
+        })
+        const makerLibrary = await makerLibraryFactory.deploy()
         const makerOrderBookLibraryFactory = await ethers.getContractFactory("MakerOrderBookLibrary", {
             libraries: {
                 AccountLibrary: accountLibrary.address,
@@ -60,6 +68,7 @@ export function createPerpdexExchangeFixture(
         const perpdexExchangeFactory = await ethers.getContractFactory("TestPerpdexExchange", {
             libraries: {
                 AccountLibrary: accountLibrary.address,
+                MakerLibrary: makerLibrary.address,
                 MakerOrderBookLibrary: makerOrderBookLibrary.address,
                 VaultLibrary: vaultLibrary.address,
             },
@@ -96,7 +105,7 @@ export function createPerpdexExchangeFixture(
             await perpdexMarkets[i].connect(owner).setFundingMaxPremiumRatio(0)
 
             if (params.isMarketAllowed) {
-                await perpdexExchange.connect(owner).setIsMarketAllowed(perpdexMarkets[i].address, true)
+                await perpdexExchange.connect(owner).setMarketStatus(perpdexMarkets[i].address, MarketStatus.Open)
             }
 
             if (params.initPool) {
@@ -126,6 +135,7 @@ export function createPerpdexExchangeFixture(
             priceFeed,
             priceFeeds,
             accountLibrary,
+            makerLibrary,
             makerOrderBookLibrary,
             vaultLibrary,
         }

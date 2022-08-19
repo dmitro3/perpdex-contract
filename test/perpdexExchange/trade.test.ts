@@ -5,6 +5,7 @@ import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, Wallet } from "ethers"
 import { getTimestamp, setNextTimestamp } from "../helper/time"
 import { MockContract } from "ethereum-waffle"
+import { MarketStatus } from "../helper/types"
 
 describe("PerpdexExchange trade", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -399,8 +400,8 @@ describe("PerpdexExchange trade", () => {
                 },
             },
             {
-                title: "open is not allowed when market closed",
-                isMarketAllowed: false,
+                title: "open is not allowed when market disallowed",
+                marketStatus: MarketStatus.NotAllowed,
                 isBaseToQuote: false,
                 isExactInput: true,
                 amount: 100,
@@ -411,12 +412,28 @@ describe("PerpdexExchange trade", () => {
                     baseBalanceShare: 0,
                     quoteBalance: 0,
                 },
-                revertedWith: "PE_CMA: market not allowed",
-                revertedWithDry: "PE_CMA: market not allowed",
+                revertedWith: "PE_CMO: market not open",
+                revertedWithDry: "PE_CMO: market not open",
+            },
+            {
+                title: "open is not allowed when market closed",
+                marketStatus: MarketStatus.Closed,
+                isBaseToQuote: false,
+                isExactInput: true,
+                amount: 100,
+                oppositeAmountBound: 0,
+                protocolFeeRatio: 0,
+                collateralBalance: 100,
+                takerInfo: {
+                    baseBalanceShare: 0,
+                    quoteBalance: 0,
+                },
+                revertedWith: "PE_CMO: market not open",
+                revertedWithDry: "PE_CMO: market not open",
             },
             {
                 title: "flip is not allowed when market closed",
-                isMarketAllowed: false,
+                marketStatus: MarketStatus.Closed,
                 isBaseToQuote: true,
                 isExactInput: true,
                 amount: 200,
@@ -427,12 +444,12 @@ describe("PerpdexExchange trade", () => {
                     baseBalanceShare: 100,
                     quoteBalance: -50,
                 },
-                revertedWith: "PE_CMA: market not allowed",
-                revertedWithDry: "PE_CMA: market not allowed",
+                revertedWith: "PE_CMO: market not open",
+                revertedWithDry: "PE_CMO: market not open",
             },
             {
                 title: "close all is not allowed when market closed",
-                isMarketAllowed: false,
+                marketStatus: MarketStatus.Closed,
                 isBaseToQuote: true,
                 isExactInput: true,
                 amount: 100,
@@ -443,12 +460,12 @@ describe("PerpdexExchange trade", () => {
                     baseBalanceShare: 100,
                     quoteBalance: -50,
                 },
-                revertedWith: "PE_CMA: market not allowed",
-                revertedWithDry: "PE_CMA: market not allowed",
+                revertedWith: "PE_CMO: market not open",
+                revertedWithDry: "PE_CMO: market not open",
             },
             {
                 title: "close partial is not allowed when market closed",
-                isMarketAllowed: false,
+                marketStatus: MarketStatus.Closed,
                 isBaseToQuote: true,
                 isExactInput: true,
                 amount: 40,
@@ -459,8 +476,8 @@ describe("PerpdexExchange trade", () => {
                     baseBalanceShare: 100,
                     quoteBalance: -50,
                 },
-                revertedWith: "PE_CMA: market not allowed",
-                revertedWithDry: "PE_CMA: market not allowed",
+                revertedWith: "PE_CMO: market not open",
+                revertedWithDry: "PE_CMO: market not open",
             },
             {
                 title: "not enough im",
@@ -653,8 +670,8 @@ describe("PerpdexExchange trade", () => {
                         await exchange.setMakerInfo(alice.address, market.address, test.makerInfo)
                     }
 
-                    if (test.isMarketAllowed !== void 0) {
-                        await exchange.connect(owner).setIsMarketAllowed(market.address, test.isMarketAllowed)
+                    if (test.marketStatus !== void 0) {
+                        await exchange.connect(owner).setMarketStatusForce(market.address, test.marketStatus)
                     }
                 })
 
