@@ -21,7 +21,7 @@ contract TestPerpdexMarket is PerpdexMarket {
         address exchangeArg,
         address priceFeedBaseArg,
         address priceFeedQuoteArg
-    ) PerpdexMarket(symbolArg, exchangeArg, priceFeedBaseArg, priceFeedQuoteArg) {}
+    ) PerpdexMarket(msg.sender, symbolArg, exchangeArg, priceFeedBaseArg, priceFeedQuoteArg) {}
 
     function processFunding() external {
         _processFunding();

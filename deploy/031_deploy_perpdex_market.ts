@@ -106,6 +106,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             from: deployer,
             contract: "PerpdexMarket",
             args: [
+                deployer,
                 markets[i].symbol,
                 perpdexExchange.address,
                 markets[i].priceFeedBase === hre.ethers.constants.AddressZero

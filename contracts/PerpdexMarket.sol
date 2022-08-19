@@ -65,11 +65,13 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     }
 
     constructor(
+        address ownerArg,
         string memory symbolArg,
         address exchangeArg,
         address priceFeedBaseArg,
         address priceFeedQuoteArg
     ) {
+        _transferOwnership(ownerArg);
         require(priceFeedBaseArg == address(0) || priceFeedBaseArg.isContract(), "PM_C: base price feed invalid");
         require(priceFeedQuoteArg == address(0) || priceFeedQuoteArg.isContract(), "PM_C: quote price feed invalid");
 

@@ -29,6 +29,7 @@ describe("PerpdexMarket constructor", () => {
         it("zero", async () => {
             await expect(
                 factory.deploy(
+                    hre.ethers.constants.AddressZero,
                     symbol,
                     exchange.address,
                     hre.ethers.constants.AddressZero,
@@ -38,18 +39,38 @@ describe("PerpdexMarket constructor", () => {
         })
 
         it("contract", async () => {
-            await expect(factory.deploy(symbol, exchange.address, priceFeed.address, priceFeed.address)).not.to.reverted
+            await expect(
+                factory.deploy(
+                    hre.ethers.constants.AddressZero,
+                    symbol,
+                    exchange.address,
+                    priceFeed.address,
+                    priceFeed.address,
+                ),
+            ).not.to.reverted
         })
 
         it("invalid base", async () => {
             await expect(
-                factory.deploy(symbol, exchange.address, invalidAddress, hre.ethers.constants.AddressZero),
+                factory.deploy(
+                    hre.ethers.constants.AddressZero,
+                    symbol,
+                    exchange.address,
+                    invalidAddress,
+                    hre.ethers.constants.AddressZero,
+                ),
             ).to.revertedWith("PM_C: base price feed invalid")
         })
 
         it("invalid quote", async () => {
             await expect(
-                factory.deploy(symbol, exchange.address, hre.ethers.constants.AddressZero, invalidAddress),
+                factory.deploy(
+                    hre.ethers.constants.AddressZero,
+                    symbol,
+                    exchange.address,
+                    hre.ethers.constants.AddressZero,
+                    invalidAddress,
+                ),
             ).to.revertedWith("PM_C: quote price feed invalid")
         })
     })

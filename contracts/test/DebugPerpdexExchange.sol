@@ -14,7 +14,7 @@ contract DebugPerpdexExchange is PerpdexExchange {
     uint256 private constant _OPTIMISM_KOVAN_CHAIN_ID = 69;
     uint256 private constant _HARDHAT_CHAIN_ID = 31337;
 
-    constructor(address settlementTokenArg) PerpdexExchange(settlementTokenArg) {
+    constructor(address settlementTokenArg) PerpdexExchange(msg.sender, settlementTokenArg, new address[](0)) {
         uint256 chainId;
         assembly {
             chainId := chainid()

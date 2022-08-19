@@ -27,15 +27,18 @@ describe("PerpdexExchange constructor", () => {
 
     describe("constructor", () => {
         it("zero", async () => {
-            await expect(factory.deploy(hre.ethers.constants.AddressZero)).not.to.reverted
+            await expect(factory.deploy(hre.ethers.constants.AddressZero, hre.ethers.constants.AddressZero, [])).not.to
+                .reverted
         })
 
         it("erc20", async () => {
-            await expect(factory.deploy(USDC.address)).not.to.reverted
+            await expect(factory.deploy(hre.ethers.constants.AddressZero, USDC.address, [])).not.to.reverted
         })
 
         it("invalid", async () => {
-            await expect(factory.deploy(invalidAddress)).to.revertedWith("PE_C: token address invalid")
+            await expect(factory.deploy(hre.ethers.constants.AddressZero, invalidAddress, [])).to.revertedWith(
+                "PE_C: token address invalid",
+            )
         })
     })
 })

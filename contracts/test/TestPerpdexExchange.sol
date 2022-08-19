@@ -8,7 +8,7 @@ import { MakerOrderBookLibrary } from "../lib/MakerOrderBookLibrary.sol";
 import { TestPerpdexMarket } from "./TestPerpdexMarket.sol";
 
 contract TestPerpdexExchange is PerpdexExchange {
-    constructor(address settlementTokenArg) PerpdexExchange(settlementTokenArg) {}
+    constructor(address settlementTokenArg) PerpdexExchange(msg.sender, settlementTokenArg, new address[](0)) {}
 
     function setAccountInfo(
         address trader,

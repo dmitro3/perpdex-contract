@@ -58,10 +58,19 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         _;
     }
 
-    constructor(address settlementTokenArg) {
+    constructor(
+        address ownerArg,
+        address settlementTokenArg,
+        address[] memory initialMarkets
+    ) {
+        _transferOwnership(ownerArg);
         require(settlementTokenArg == address(0) || settlementTokenArg.isContract(), "PE_C: token address invalid");
 
         settlementToken = settlementTokenArg;
+
+        for (uint256 i = 0; i < initialMarkets.length; ++i) {
+            _setMarketStatus(initialMarkets[i], PerpdexStructs.MarketStatus.Open);
+        }
     }
 
     function deposit(uint256 amount) external payable nonReentrant {
@@ -367,20 +376,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     }
 
     function setMarketStatus(address market, PerpdexStructs.MarketStatus status) external onlyOwner nonReentrant {
-        if (marketStatuses[market] == status) return;
-
-        if (status == PerpdexStructs.MarketStatus.Open) {
-            require(market.isContract(), "PE_SIMA: market address invalid");
-            require(IPerpdexMarketMinimum(market).exchange() == address(this), "PE_SIMA: different exchange");
-            require(marketStatuses[market] == PerpdexStructs.MarketStatus.NotAllowed, "PE_SIMA: market closed");
-        } else if (status == PerpdexStructs.MarketStatus.Closed) {
-            _checkMarketOpen(market);
-        } else {
-            require(false, "PE_SIMA: invalid status");
-        }
-
-        marketStatuses[market] = status;
-        emit MarketStatusChanged(market, status);
+        _setMarketStatus(market, status);
     }
 
     // all raw information can be retrieved through getters (including default getters)
@@ -536,6 +532,23 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
                     isSelf: params.trader == _msgSender()
                 })
             );
+    }
+
+    function _setMarketStatus(address market, PerpdexStructs.MarketStatus status) private {
+        if (marketStatuses[market] == status) return;
+
+        if (status == PerpdexStructs.MarketStatus.Open) {
+            require(market.isContract(), "PE_SIMA: market address invalid");
+            require(IPerpdexMarketMinimum(market).exchange() == address(this), "PE_SIMA: different exchange");
+            require(marketStatuses[market] == PerpdexStructs.MarketStatus.NotAllowed, "PE_SIMA: market closed");
+        } else if (status == PerpdexStructs.MarketStatus.Closed) {
+            _checkMarketOpen(market);
+        } else {
+            require(false, "PE_SIMA: invalid status");
+        }
+
+        marketStatuses[market] = status;
+        emit MarketStatusChanged(market, status);
     }
 
     // to reduce contract size
