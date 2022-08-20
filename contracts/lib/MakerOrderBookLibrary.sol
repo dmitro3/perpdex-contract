@@ -244,14 +244,18 @@ library MakerOrderBookLibrary {
         uint256 length = orderIds.length;
         PerpdexStructs.LimitOrderSummary[256] memory summaries;
         uint256 summaryCount;
-        for (uint256 i = 0; i < length; ++i) {
+        uint256 i;
+        while (i < length) {
             (uint48 executionId, , ) = IPerpdexMarketMinimum(market).getLimitOrderExecution(isBid, orderIds[i]);
-            if (executionId == 0) continue;
-
+            if (executionId != 0) break;
+            ++i;
+        }
+        while (i < length) {
             summaries[summaryCount].orderId = orderIds[i];
             (summaries[summaryCount].base, summaries[summaryCount].priceX96) = IPerpdexMarketMinimum(market)
                 .getLimitOrderInfo(isBid, orderIds[i]);
             ++summaryCount;
+            ++i;
         }
         result = new PerpdexStructs.LimitOrderSummary[](summaryCount);
         for (uint256 i = 0; i < summaryCount; ++i) {
