@@ -247,7 +247,7 @@ library MakerOrderBookLibrary {
         uint256 i;
         while (i < length) {
             (uint48 executionId, , ) = IPerpdexMarketMinimum(market).getLimitOrderExecution(isBid, orderIds[i]);
-            if (executionId != 0) break;
+            if (executionId == 0) break;
             ++i;
         }
         while (i < length) {
