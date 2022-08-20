@@ -116,6 +116,7 @@ describe("PerpdexExchange limitOrder", () => {
                 expected: {
                     askOrderIds: [1, 2, 3, 4],
                     bidOrderIds: [],
+                    skipSummaryTest: true, // It's a case that can't actually happen.
                 },
             },
             {
@@ -132,6 +133,7 @@ describe("PerpdexExchange limitOrder", () => {
                 expected: {
                     askOrderIds: [],
                     bidOrderIds: [1, 2, 3, 4],
+                    skipSummaryTest: true, // It's a case that can't actually happen.
                 },
             },
             {
@@ -172,6 +174,8 @@ describe("PerpdexExchange limitOrder", () => {
 
                 let askId = 1
                 let bidId = 1
+                const askSummaries = []
+                const bidSummaries = []
                 for (let i = 0; i < test.orders.length; i++) {
                     const order = test.orders[i]
                     let id = order.isBid ? bidId++ : askId++
@@ -182,14 +186,63 @@ describe("PerpdexExchange limitOrder", () => {
                         expect(exec).to.deep.eq([order.executionId, order.base, quote])
                     } else {
                         expect(exec).to.deep.eq([0, 0, 0])
+                        const summaries = order.isBid ? bidSummaries : askSummaries
+                        summaries.push({
+                            orderId: id,
+                            base: order.base,
+                            priceX96: order.priceX96,
+                        })
                     }
                 }
+                const summarySortFunc = (isBid, x, y) => {
+                    if (isBid) {
+                        if (x.priceX96.gt(y.priceX96)) {
+                            return -1
+                        } else if (x.priceX96.lt(y.priceX96)) {
+                            return 1
+                        }
+                    } else {
+                        if (x.priceX96.lt(y.priceX96)) {
+                            return -1
+                        } else if (x.priceX96.gt(y.priceX96)) {
+                            return 1
+                        }
+                    }
+                    return x.orderId - y.orderId
+                }
+                askSummaries.sort(_.partial(summarySortFunc, false))
+                bidSummaries.sort(_.partial(summarySortFunc, true))
+
                 expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq(
                     test.expected.askOrderIds,
                 )
                 expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq(
                     test.expected.bidOrderIds,
                 )
+
+                if (!test.expected.skipSummaryTest) {
+                    const assertSummary = (actual, expected) => {
+                        expect(actual.orderId).to.eq(expected.orderId)
+                        expect(actual.priceX96).to.eq(expected.priceX96)
+                        expect(actual.priceX96).to.eq(expected.priceX96)
+                    }
+                    const actualAskSummaries = await exchange.getLimitOrderSummaries(
+                        alice.address,
+                        market.address,
+                        false,
+                    )
+                    for (let i = 0; i < actualAskSummaries.length; i++) {
+                        assertSummary(actualAskSummaries[i], askSummaries[i])
+                    }
+                    const actualBidSummaries = await exchange.getLimitOrderSummaries(
+                        alice.address,
+                        market.address,
+                        true,
+                    )
+                    for (let i = 0; i < actualBidSummaries.length; i++) {
+                        assertSummary(actualBidSummaries[i], bidSummaries[i])
+                    }
+                }
             })
         })
     })
