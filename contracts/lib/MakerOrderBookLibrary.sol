@@ -218,7 +218,7 @@ library MakerOrderBookLibrary {
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         bool isBid
-    ) external view returns (uint40[] memory result) {
+    ) public view returns (uint40[] memory result) {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         RBTreeLibrary.Tree storage tree = isBid ? limitOrderInfo.bid : limitOrderInfo.ask;
         uint40[256] memory orderIds;
@@ -232,6 +232,30 @@ library MakerOrderBookLibrary {
         result = new uint40[](orderCount);
         for (uint256 i = 0; i < orderCount; ++i) {
             result[i] = orderIds[i];
+        }
+    }
+
+    function getLimitOrderSummaries(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        bool isBid
+    ) external view returns (PerpdexStructs.LimitOrderSummary[] memory result) {
+        uint40[] memory orderIds = getLimitOrderIds(accountInfo, market, isBid);
+        uint256 length = orderIds.length;
+        PerpdexStructs.LimitOrderSummary[256] memory summaries;
+        uint256 summaryCount;
+        for (uint256 i = 0; i < length; ++i) {
+            (uint48 executionId, , ) = IPerpdexMarketMinimum(market).getLimitOrderExecution(isBid, orderIds[i]);
+            if (executionId == 0) continue;
+
+            summaries[summaryCount].orderId = orderIds[i];
+            (summaries[summaryCount].base, summaries[summaryCount].priceX96) = IPerpdexMarketMinimum(market)
+                .getLimitOrderInfo(isBid, orderIds[i]);
+            ++summaryCount;
+        }
+        result = new PerpdexStructs.LimitOrderSummary[](summaryCount);
+        for (uint256 i = 0; i < summaryCount; ++i) {
+            result[i] = summaries[i];
         }
     }
 

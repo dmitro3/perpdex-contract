@@ -55,4 +55,10 @@ library PerpdexStructs {
         uint24 rewardRatio;
         uint16 smoothEmaTime;
     }
+
+    struct LimitOrderSummary {
+        uint40 orderId;
+        uint256 base;
+        uint256 priceX96;
+    }
 }

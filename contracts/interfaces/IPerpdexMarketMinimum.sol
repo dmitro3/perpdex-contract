@@ -72,7 +72,7 @@ interface IPerpdexMarketMinimum {
         external
         view
         returns (
-            uint256 executionId,
+            uint48 executionId,
             uint256 executedBase,
             uint256 executedQuote
         );

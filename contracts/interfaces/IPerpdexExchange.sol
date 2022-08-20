@@ -230,6 +230,22 @@ interface IPerpdexExchange {
 
     function getAccountMarkets(address trader) external view returns (address[] memory);
 
+    function getLimitOrderInfo(address trader, address market)
+        external
+        view
+        returns (
+            uint40 askRoot,
+            uint40 bidRoot,
+            uint256 totalBaseAsk,
+            uint256 totalBaseBid
+        );
+
+    function getLimitOrderIds(
+        address trader,
+        address market,
+        bool isBid
+    ) external view returns (uint40[] memory);
+
     // convenient getters
 
     function getTotalAccountValue(address trader) external view returns (int256);
@@ -251,4 +267,10 @@ interface IPerpdexExchange {
     function hasEnoughInitialMargin(address trader) external view returns (bool);
 
     function isLiquidationFree(address trader) external view returns (bool);
+
+    function getLimitOrderSummaries(
+        address trader,
+        address market,
+        bool isBid
+    ) external view returns (PerpdexStructs.LimitOrderSummary[] memory);
 }

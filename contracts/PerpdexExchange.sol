@@ -510,6 +510,14 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         return AccountLibrary.isLiquidationFree(accountInfos[trader]);
     }
 
+    function getLimitOrderSummaries(
+        address trader,
+        address market,
+        bool isBid
+    ) external view returns (PerpdexStructs.LimitOrderSummary[] memory) {
+        return MakerOrderBookLibrary.getLimitOrderSummaries(accountInfos[trader], market, isBid);
+    }
+
     // for avoiding stack too deep error
     function _doTrade(TradeParams calldata params) private returns (TakerLibrary.TradeResponse memory) {
         return
