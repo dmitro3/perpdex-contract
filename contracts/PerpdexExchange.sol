@@ -132,7 +132,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         if (response.rawResponse.partialOrderId != 0) {
             address partialTrader =
                 orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialOrderId];
-            int256 partialRealizedPnL =
+            _settleLimitOrders(partialTrader, params.market);
+            int256 partialRealizedPnl =
                 MakerOrderBookLibrary.processPartialExecution(
                     accountInfos[partialTrader],
                     params.market,
@@ -147,7 +148,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
                 params.isBaseToQuote,
                 response.rawResponse.basePartial,
                 response.rawResponse.quotePartial,
-                partialRealizedPnL
+                partialRealizedPnl
             );
         }
 
@@ -331,7 +332,20 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     }
 
     function _settleLimitOrders(address trader) internal {
-        MakerOrderBookLibrary.settleLimitOrdersAll(accountInfos[trader], maxMarketsPerAccount);
+        address[] storage markets = accountInfos[trader].markets;
+        uint256 i = markets.length;
+        while (i > 0) {
+            --i;
+            _settleLimitOrders(trader, markets[i]);
+        }
+    }
+
+    function _settleLimitOrders(address trader, address market) internal {
+        MakerOrderBookLibrary.SettleLimitOrdersResponse memory response =
+            MakerOrderBookLibrary.settleLimitOrders(accountInfos[trader], market, maxMarketsPerAccount);
+        if (response.base != 0 || response.quote != 0 || response.realizedPnl != 0) {
+            emit LimitOrderSettled(trader, market, response.base, response.quote, response.realizedPnl);
+        }
     }
 
     function setMaxMarketsPerAccount(uint8 value) external onlyOwner nonReentrant {

@@ -44,6 +44,21 @@ library MakerOrderBookLibrary {
         uint8 maxMarketsPerAccount;
     }
 
+    struct SettleLimitOrdersLocalVars {
+        uint40 executedLastAskOrderId;
+        uint40 executedLastBidOrderId;
+        uint256 executionLength;
+        uint256 totalExecutedBaseAsk;
+        uint256 totalExecutedBaseBid;
+        PerpdexStructs.TakerInfo prevTakerInfo;
+    }
+
+    struct SettleLimitOrdersResponse {
+        int256 base;
+        int256 quote;
+        int256 realizedPnl;
+    }
+
     function createLimitOrder(PerpdexStructs.AccountInfo storage accountInfo, CreateLimitOrderParams memory params)
         public
         returns (uint40 orderId)
@@ -54,10 +69,10 @@ library MakerOrderBookLibrary {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         uint256 slot = _getSlot(limitOrderInfo);
         if (params.isBid) {
-            limitOrderInfo.bid.insert(orderId, makeUserData(params.priceX96), _lessThanBid, _aggregate, slot);
+            limitOrderInfo.bid.insert(orderId, _makeUserData(params.priceX96), _lessThanBid, _aggregate, slot);
             limitOrderInfo.totalBaseBid += params.base;
         } else {
-            limitOrderInfo.ask.insert(orderId, makeUserData(params.priceX96), _lessThanAsk, _aggregate, slot);
+            limitOrderInfo.ask.insert(orderId, _makeUserData(params.priceX96), _lessThanAsk, _aggregate, slot);
             limitOrderInfo.totalBaseAsk += params.base;
         }
         accountInfo.limitOrderCount += 1;
@@ -93,100 +108,56 @@ library MakerOrderBookLibrary {
         AccountLibrary.updateMarkets(accountInfo, params.market, params.maxMarketsPerAccount);
     }
 
-    function makeUserData(uint256 priceX96) internal pure returns (uint128) {
-        return priceX96.toUint128();
-    }
-
-    function userDataToPriceX96(uint128 userData) internal pure returns (uint128) {
-        return userData;
-    }
-
-    function _lessThan(
-        RBTreeLibrary.Tree storage tree,
-        bool isBid,
-        uint40 key0,
-        uint40 key1
-    ) private view returns (bool) {
-        uint128 price0 = userDataToPriceX96(tree.nodes[key0].userData);
-        uint128 price1 = userDataToPriceX96(tree.nodes[key1].userData);
-        if (price0 == price1) {
-            return key0 < key1; // time priority
-        }
-        // price priority
-        return isBid ? price0 > price1 : price0 < price1;
-    }
-
-    function _lessThanAsk(
-        uint40 key0,
-        uint40 key1,
-        uint256 slot
-    ) private view returns (bool) {
-        PerpdexStructs.LimitOrderInfo storage info = _getLimitOrderInfoFromSlot(slot);
-        return _lessThan(info.ask, false, key0, key1);
-    }
-
-    function _lessThanBid(
-        uint40 key0,
-        uint40 key1,
-        uint256 slot
-    ) private view returns (bool) {
-        PerpdexStructs.LimitOrderInfo storage info = _getLimitOrderInfoFromSlot(slot);
-        return _lessThan(info.bid, true, key0, key1);
-    }
-
-    function _aggregate(uint40, uint256) private pure returns (bool) {
-        return true;
-    }
-
-    function _subtreeRemoved(uint40, uint256) private pure {}
-
-    function settleLimitOrdersAll(PerpdexStructs.AccountInfo storage accountInfo, uint8 maxMarketsPerAccount) public {
-        address[] storage markets = accountInfo.markets;
-        uint256 i = markets.length;
-        while (i > 0) {
-            --i;
-            _settleLimitOrders(accountInfo, markets[i], maxMarketsPerAccount);
-        }
-    }
-
-    function _settleLimitOrders(
+    function settleLimitOrders(
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         uint8 maxMarketsPerAccount
-    ) private {
+    ) external returns (SettleLimitOrdersResponse memory response) {
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
-        (
-            AccountPreviewLibrary.Execution[] memory executions,
-            uint40 executedLastAskOrderId,
-            uint40 executedLastBidOrderId
-        ) = AccountPreviewLibrary.getLimitOrderExecutions(accountInfo, market);
-        uint256 executionLength = executions.length;
-        if (executionLength == 0) return;
+        SettleLimitOrdersLocalVars memory vars;
+        AccountPreviewLibrary.Execution[] memory executions;
+        (executions, vars.executedLastAskOrderId, vars.executedLastBidOrderId) = AccountPreviewLibrary
+            .getLimitOrderExecutions(accountInfo, market);
+        vars.executionLength = executions.length;
+        if (vars.executionLength == 0) return response;
 
         {
             uint256 slot = _getSlot(limitOrderInfo);
-            if (executedLastAskOrderId != 0) {
-                limitOrderInfo.ask.removeLeft(executedLastAskOrderId, _lessThanAsk, _aggregate, _subtreeRemoved, slot);
+            if (vars.executedLastAskOrderId != 0) {
+                limitOrderInfo.ask.removeLeft(
+                    vars.executedLastAskOrderId,
+                    _lessThanAsk,
+                    _aggregate,
+                    _subtreeRemoved,
+                    slot
+                );
             }
-            if (executedLastBidOrderId != 0) {
-                limitOrderInfo.bid.removeLeft(executedLastBidOrderId, _lessThanBid, _aggregate, _subtreeRemoved, slot);
+            if (vars.executedLastBidOrderId != 0) {
+                limitOrderInfo.bid.removeLeft(
+                    vars.executedLastBidOrderId,
+                    _lessThanBid,
+                    _aggregate,
+                    _subtreeRemoved,
+                    slot
+                );
             }
         }
 
-        int256 realizedPnl;
-        uint256 totalExecutedBaseAsk;
-        uint256 totalExecutedBaseBid;
+        vars.prevTakerInfo = accountInfo.takerInfos[market];
         (
             accountInfo.takerInfos[market],
-            realizedPnl,
-            totalExecutedBaseAsk,
-            totalExecutedBaseBid
+            response.realizedPnl,
+            vars.totalExecutedBaseAsk,
+            vars.totalExecutedBaseBid
         ) = AccountPreviewLibrary.previewSettleLimitOrders(accountInfo, market, executions);
 
-        limitOrderInfo.totalBaseAsk -= totalExecutedBaseAsk;
-        limitOrderInfo.totalBaseBid -= totalExecutedBaseBid;
-        accountInfo.limitOrderCount -= executionLength.toUint8();
-        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(realizedPnl);
+        response.base = accountInfo.takerInfos[market].baseBalanceShare - vars.prevTakerInfo.baseBalanceShare;
+        response.quote = accountInfo.takerInfos[market].quoteBalance - vars.prevTakerInfo.quoteBalance;
+
+        limitOrderInfo.totalBaseAsk -= vars.totalExecutedBaseAsk;
+        limitOrderInfo.totalBaseBid -= vars.totalExecutedBaseBid;
+        accountInfo.limitOrderCount -= vars.executionLength.toUint8();
+        accountInfo.vaultInfo.collateralBalance += response.realizedPnl;
         AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);
     }
 
@@ -197,7 +168,6 @@ library MakerOrderBookLibrary {
         uint8 maxMarketsPerAccount,
         IPerpdexMarketMinimum.SwapResponse memory rawResponse
     ) external returns (int256 realizedPnl) {
-        _settleLimitOrders(accountInfo, market, maxMarketsPerAccount);
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[market];
         if (isBaseToQuote) {
             limitOrderInfo.totalBaseBid -= rawResponse.basePartial;
@@ -244,24 +214,73 @@ library MakerOrderBookLibrary {
         uint256 length = orderIds.length;
         PerpdexStructs.LimitOrderSummary[256] memory summaries;
         uint256 summaryCount;
-        uint256 i;
-        while (i < length) {
-            (uint48 executionId, , ) = IPerpdexMarketMinimum(market).getLimitOrderExecution(isBid, orderIds[i]);
-            if (executionId == 0) break;
-            ++i;
-        }
-        while (i < length) {
-            summaries[summaryCount].orderId = orderIds[i];
-            (summaries[summaryCount].base, summaries[summaryCount].priceX96) = IPerpdexMarketMinimum(market)
-                .getLimitOrderInfo(isBid, orderIds[i]);
-            ++summaryCount;
-            ++i;
+        {
+            uint256 i;
+            while (i < length) {
+                (uint48 executionId, , ) = IPerpdexMarketMinimum(market).getLimitOrderExecution(isBid, orderIds[i]);
+                if (executionId == 0) break;
+                ++i;
+            }
+            while (i < length) {
+                summaries[summaryCount].orderId = orderIds[i];
+                (summaries[summaryCount].base, summaries[summaryCount].priceX96) = IPerpdexMarketMinimum(market)
+                    .getLimitOrderInfo(isBid, orderIds[i]);
+                ++summaryCount;
+                ++i;
+            }
         }
         result = new PerpdexStructs.LimitOrderSummary[](summaryCount);
         for (uint256 i = 0; i < summaryCount; ++i) {
             result[i] = summaries[i];
         }
     }
+
+    function _makeUserData(uint256 priceX96) private pure returns (uint128) {
+        return priceX96.toUint128();
+    }
+
+    function _userDataToPriceX96(uint128 userData) private pure returns (uint128) {
+        return userData;
+    }
+
+    function _lessThan(
+        RBTreeLibrary.Tree storage tree,
+        bool isBid,
+        uint40 key0,
+        uint40 key1
+    ) private view returns (bool) {
+        uint128 price0 = _userDataToPriceX96(tree.nodes[key0].userData);
+        uint128 price1 = _userDataToPriceX96(tree.nodes[key1].userData);
+        if (price0 == price1) {
+            return key0 < key1; // time priority
+        }
+        // price priority
+        return isBid ? price0 > price1 : price0 < price1;
+    }
+
+    function _lessThanAsk(
+        uint40 key0,
+        uint40 key1,
+        uint256 slot
+    ) private view returns (bool) {
+        PerpdexStructs.LimitOrderInfo storage info = _getLimitOrderInfoFromSlot(slot);
+        return _lessThan(info.ask, false, key0, key1);
+    }
+
+    function _lessThanBid(
+        uint40 key0,
+        uint40 key1,
+        uint256 slot
+    ) private view returns (bool) {
+        PerpdexStructs.LimitOrderInfo storage info = _getLimitOrderInfoFromSlot(slot);
+        return _lessThan(info.bid, true, key0, key1);
+    }
+
+    function _aggregate(uint40, uint256) private pure returns (bool) {
+        return true;
+    }
+
+    function _subtreeRemoved(uint40, uint256) private pure {}
 
     function _getSlot(PerpdexStructs.LimitOrderInfo storage d) private pure returns (uint256 slot) {
         assembly {

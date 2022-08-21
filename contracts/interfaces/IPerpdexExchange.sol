@@ -93,15 +93,6 @@ interface IPerpdexExchange {
         int256 realizedPnl
     );
 
-    event PartiallyExecuted(
-        address indexed maker,
-        address indexed market,
-        bool isAsk,
-        uint256 basePartial,
-        uint256 quotePartial,
-        int256 partialRealizedPnL
-    );
-
     event PositionLiquidated(
         address indexed trader,
         address indexed market,
@@ -143,6 +134,23 @@ interface IPerpdexExchange {
         address indexed liquidator,
         bool isBid,
         uint256 orderId
+    );
+
+    event PartiallyExecuted(
+        address indexed maker,
+        address indexed market,
+        bool isBid,
+        uint256 basePartial,
+        uint256 quotePartial,
+        int256 partialRealizedPnl
+    );
+
+    event LimitOrderSettled(
+        address indexed trader,
+        address indexed market,
+        int256 base,
+        int256 quote,
+        int256 realizedPnl
     );
 
     event MaxMarketsPerAccountChanged(uint8 value);

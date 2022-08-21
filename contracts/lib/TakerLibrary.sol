@@ -133,7 +133,7 @@ library TakerLibrary {
             quoteFee
         );
 
-        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(realizedPnl);
+        accountInfo.vaultInfo.collateralBalance += realizedPnl;
 
         AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);
     }
@@ -322,9 +322,9 @@ library TakerLibrary {
             liquidationRewardConfig.smoothEmaTime
         );
 
-        vaultInfo.collateralBalance = vaultInfo.collateralBalance.sub(penalty.toInt256());
-        liquidatorVaultInfo.collateralBalance = liquidatorVaultInfo.collateralBalance.add(liquidationReward.toInt256());
-        insuranceFundInfo.balance = insuranceFundInfo.balance.add(insuranceFundReward);
+        vaultInfo.collateralBalance -= penalty.toInt256();
+        liquidatorVaultInfo.collateralBalance += liquidationReward.toInt256();
+        insuranceFundInfo.balance += insuranceFundReward;
     }
 
     function _smoothLiquidationReward(

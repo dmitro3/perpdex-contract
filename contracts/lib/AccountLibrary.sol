@@ -268,10 +268,10 @@ library AccountLibrary {
                 marketResponse.quoteBalance - marketResponse.quoteBalancePool.toInt256()
             );
         }
-        response.accountValue = response.accountValue.add(response.collateralBalance);
+        response.accountValue += response.collateralBalance;
         response.isLiquidationFree =
             response.isLiquidationFree &&
-            quoteBalanceWithoutPool.add(response.collateralBalance) >= 0;
+            quoteBalanceWithoutPool + response.collateralBalance >= 0;
     }
 
     function _marketExists(PerpdexStructs.AccountInfo storage accountInfo, address market) private view returns (bool) {

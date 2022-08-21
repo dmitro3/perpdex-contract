@@ -49,14 +49,12 @@ library VaultLibrary {
         _transferTokenIn(params.settlementToken, params.from, params.amount);
         uint256 collateralAmount =
             _toCollateralAmount(params.amount, IERC20Metadata(params.settlementToken).decimals());
-        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(
-            collateralAmount.toInt256()
-        );
+        accountInfo.vaultInfo.collateralBalance += collateralAmount.toInt256();
     }
 
     function depositEth(PerpdexStructs.AccountInfo storage accountInfo, uint256 amount) external {
         require(amount > 0, "VL_DE: zero amount");
-        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(amount.toInt256());
+        accountInfo.vaultInfo.collateralBalance += amount.toInt256();
     }
 
     function withdraw(PerpdexStructs.AccountInfo storage accountInfo, WithdrawParams memory params) external {
@@ -66,9 +64,7 @@ library VaultLibrary {
             params.settlementToken == address(0)
                 ? params.amount
                 : _toCollateralAmount(params.amount, IERC20Metadata(params.settlementToken).decimals());
-        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.sub(
-            collateralAmount.toInt256()
-        );
+        accountInfo.vaultInfo.collateralBalance -= collateralAmount.toInt256();
 
         require(AccountLibrary.hasEnoughInitialMargin(accountInfo, params.imRatio), "VL_W: not enough initial margin");
 
@@ -84,8 +80,8 @@ library VaultLibrary {
         PerpdexStructs.ProtocolInfo storage protocolInfo,
         uint256 amount
     ) external {
-        accountInfo.vaultInfo.collateralBalance = accountInfo.vaultInfo.collateralBalance.add(amount.toInt256());
-        protocolInfo.protocolFee = protocolInfo.protocolFee.sub(amount);
+        accountInfo.vaultInfo.collateralBalance += amount.toInt256();
+        protocolInfo.protocolFee -= amount;
     }
 
     function _transferTokenIn(

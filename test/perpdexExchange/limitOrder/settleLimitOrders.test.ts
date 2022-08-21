@@ -67,6 +67,11 @@ describe("PerpdexExchange limitOrder", () => {
                     markets: true,
                     askOrderIds: [],
                     bidOrderIds: [],
+                    limitOrderSettled: {
+                        base: -1,
+                        quote: 1,
+                        realizedPnl: 0,
+                    },
                 },
             },
             {
@@ -86,6 +91,11 @@ describe("PerpdexExchange limitOrder", () => {
                     markets: true,
                     askOrderIds: [],
                     bidOrderIds: [],
+                    limitOrderSettled: {
+                        base: 1,
+                        quote: -1,
+                        realizedPnl: 0,
+                    },
                 },
             },
             {
@@ -112,6 +122,38 @@ describe("PerpdexExchange limitOrder", () => {
                     markets: false,
                     askOrderIds: [],
                     bidOrderIds: [],
+                    limitOrderSettled: void 0,
+                },
+            },
+            {
+                title: "ask bid executed with realizedPnl",
+                orders: [
+                    {
+                        isBid: true,
+                        base: 2,
+                        priceX96: Q96.div(2),
+                        executionId: 1,
+                        baseBalancePerShareX96: Q96,
+                    },
+                    {
+                        isBid: false,
+                        base: 2,
+                        priceX96: Q96,
+                        executionId: 1,
+                        baseBalancePerShareX96: Q96,
+                    },
+                ],
+                expected: {
+                    limitOrderCount: 0,
+                    totalBase: [0, 0],
+                    markets: false,
+                    askOrderIds: [],
+                    bidOrderIds: [],
+                    limitOrderSettled: {
+                        base: 0,
+                        quote: 0,
+                        realizedPnl: 1,
+                    },
                 },
             },
             {
@@ -152,12 +194,30 @@ describe("PerpdexExchange limitOrder", () => {
                     markets: true,
                     askOrderIds: [2],
                     bidOrderIds: [1],
+                    limitOrderSettled: {
+                        base: -1,
+                        quote: 1,
+                        realizedPnl: 0,
+                    },
                 },
             },
         ].forEach(test => {
             it(test.title, async () => {
                 await exchange.connect(alice).createLimitOrdersForTest(test.orders, market.address)
-                await exchange.settleLimitOrders(alice.address)
+                const call = exchange.settleLimitOrders(alice.address)
+                if (test.expected.limitOrderSettled) {
+                    await expect(call)
+                        .to.emit(exchange, "LimitOrderSettled")
+                        .withArgs(
+                            alice.address,
+                            market.address,
+                            test.expected.limitOrderSettled.base,
+                            test.expected.limitOrderSettled.quote,
+                            test.expected.limitOrderSettled.realizedPnl,
+                        )
+                } else {
+                    await expect(call).not.to.emit(exchange, "LimitOrderSettled")
+                }
 
                 await assertLimitOrderCount(test.expected.limitOrderCount)
                 await assertTotalBase(test.expected.totalBase)
