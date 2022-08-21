@@ -71,4 +71,16 @@ library MarketStructs {
         uint24 atrFeeRatio;
         uint32 atrEmaBlocks;
     }
+
+    struct Candle {
+        uint128 closeX96;
+        uint128 quote;
+        uint128 highX96;
+        uint128 lowX96;
+    }
+
+    struct CandleList {
+        mapping(uint32 => mapping(uint32 => Candle)) candles;
+        uint32 prevTimestamp;
+    }
 }

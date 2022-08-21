@@ -17,6 +17,7 @@ import { PoolLibrary } from "./lib/PoolLibrary.sol";
 import { PriceLimitLibrary } from "./lib/PriceLimitLibrary.sol";
 import { OrderBookLibrary } from "./lib/OrderBookLibrary.sol";
 import { PoolFeeLibrary } from "./lib/PoolFeeLibrary.sol";
+import { CandleLibrary } from "./lib/CandleLibrary.sol";
 
 contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     using Address for address;
@@ -45,6 +46,7 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     MarketStructs.PriceLimitInfo public priceLimitInfo;
     MarketStructs.OrderBookInfo internal _orderBookInfo;
     MarketStructs.PoolFeeInfo public poolFeeInfo;
+    MarketStructs.CandleList public candleList;
 
     uint24 public fundingMaxPremiumRatio = 1e4;
     uint32 public fundingMaxElapsedSec = 1 days;
@@ -115,6 +117,12 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
             quotePartial: swapResponse.quotePartial,
             partialOrderId: swapResponse.partialKey
         });
+
+        {
+            uint256 priceX96 = isBaseToQuote ? getBidPriceX96() : getAskPriceX96();
+            uint256 quote = isBaseToQuote == isExactInput ? swapResponse.oppositeAmount : amount;
+            CandleLibrary.update(candleList, block.timestamp.toUint32(), priceX96, quote);
+        }
 
         PoolFeeLibrary.update(poolFeeInfo, poolFeeConfig.atrEmaBlocks, sharePriceBeforeX96, getShareMarkPriceX96());
         PriceLimitLibrary.update(priceLimitInfo, updated);
@@ -379,6 +387,14 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
         )
     {
         return OrderBookLibrary.getOrderExecution(_orderBookInfo, isBid, orderId);
+    }
+
+    function getCandles(
+        uint32 interval,
+        uint32 startTime,
+        uint256 count
+    ) external view returns (MarketStructs.Candle[] memory) {
+        return CandleLibrary.getCandles(candleList, interval, startTime, count);
     }
 
     function _processFunding() internal {

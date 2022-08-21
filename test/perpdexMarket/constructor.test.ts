@@ -21,6 +21,7 @@ describe("PerpdexMarket constructor", () => {
         factory = await ethers.getContractFactory("PerpdexMarket", {
             libraries: {
                 OrderBookLibrary: fixture.orderBookLibrary.address,
+                CandleLibrary: fixture.candleLibrary.address,
             },
         })
     })
