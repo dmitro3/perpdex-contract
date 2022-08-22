@@ -30,7 +30,8 @@ interface IPerpdexMarketMinimum {
     function createLimitOrder(
         bool isBid,
         uint256 baseShare,
-        uint256 priceX96
+        uint256 priceX96,
+        bool ignorePostOnlyCheck
     ) external returns (uint40 orderId);
 
     function cancelLimitOrder(bool isBid, uint40 orderId) external;
@@ -48,6 +49,12 @@ interface IPerpdexMarketMinimum {
         bool isBaseToQuote,
         bool isExactInput,
         bool isLiquidation
+    ) external view returns (uint256 amount);
+
+    function maxSwapByPrice(
+        bool isBaseToQuote,
+        bool isExactInput,
+        uint256 priceX96
     ) external view returns (uint256 amount);
 
     function exchange() external view returns (address);

@@ -65,10 +65,12 @@ library OrderBookLibrary {
         MarketStructs.OrderBookInfo storage orderBookInfo,
         bool isBid,
         uint256 base,
-        uint256 priceX96
+        uint256 priceX96,
+        uint256 markPriceX96
     ) public returns (uint40) {
         require(base > 0, "OBL_CO: base is zero");
-        require(priceX96 > 0, "OBL_CO: price is zero");
+        require(priceX96 >= markPriceX96 / 100, "OBL_CO: price too small");
+        require(priceX96 <= markPriceX96 * 100, "OBL_CO: price too large");
         MarketStructs.OrderBookSideInfo storage info = isBid ? orderBookInfo.bid : orderBookInfo.ask;
         uint40 key = info.seqKey + 1;
         info.seqKey = key;

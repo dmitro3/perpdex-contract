@@ -6,6 +6,7 @@ import { BigNumber, Wallet } from "ethers"
 import { getTimestamp, setNextTimestamp } from "../../helper/time"
 import { MockContract } from "ethereum-waffle"
 import _ from "lodash"
+import { LimitOrderType } from "../../helper/types"
 
 describe("PerpdexExchange complex situation", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -144,6 +145,7 @@ describe("PerpdexExchange complex situation", () => {
             base: amount,
             priceX96: priceX96,
             deadline: deadline,
+            limitOrderType: LimitOrderType.PostOnly,
         })
     }
 
@@ -154,6 +156,7 @@ describe("PerpdexExchange complex situation", () => {
             base: amount,
             priceX96: priceX96,
             deadline: deadline,
+            limitOrderType: LimitOrderType.PostOnly,
         })
     }
 

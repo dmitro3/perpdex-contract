@@ -3,6 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../typechain"
 import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, BigNumberish, Wallet } from "ethers"
+import { LimitOrderType } from "../helper/types"
 
 describe("PerpdexExchange trade consistency", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -92,6 +93,7 @@ describe("PerpdexExchange trade consistency", () => {
                                                 base: initialPoolAmount.div(100),
                                                 priceX96: Q96.mul(100 + i).div(100),
                                                 deadline: deadline,
+                                                limitOrderType: LimitOrderType.PostOnly,
                                             })
                                             await exchange.connect(owner).createLimitOrder({
                                                 market: market.address,
@@ -99,6 +101,7 @@ describe("PerpdexExchange trade consistency", () => {
                                                 base: initialPoolAmount.div(100),
                                                 priceX96: Q96.mul(100 - i).div(100),
                                                 deadline: deadline,
+                                                limitOrderType: LimitOrderType.PostOnly,
                                             })
                                         }
                                     }

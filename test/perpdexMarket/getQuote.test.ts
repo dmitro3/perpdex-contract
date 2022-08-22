@@ -102,10 +102,10 @@ describe("PerpdexMarket getQuote", () => {
                         atrEmaBlocks: 1,
                     })
                     if (test.orderBookAsk) {
-                        await market.connect(exchange).createLimitOrder(false, 1, test.orderBookAsk)
+                        await market.connect(exchange).createLimitOrder(false, 1, test.orderBookAsk, false)
                     }
                     if (test.orderBookBid) {
-                        await market.connect(exchange).createLimitOrder(true, 1, test.orderBookBid)
+                        await market.connect(exchange).createLimitOrder(true, 1, test.orderBookBid, false)
                     }
                 })
 

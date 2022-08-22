@@ -4,6 +4,7 @@ import { TestPerpdexMarket, TestPerpdexExchange } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../fixtures"
 import { BigNumber, Wallet } from "ethers"
 import _ from "lodash"
+import { LimitOrderType } from "../../helper/types"
 
 describe("PerpdexExchange limitOrder", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -339,6 +340,7 @@ describe("PerpdexExchange limitOrder", () => {
                     await exchange.connect(order.others ? owner : alice).createLimitOrder({
                         market: market.address,
                         deadline: deadline,
+                        limitOrderType: LimitOrderType.PostOnly,
                         ...order,
                     })
                 }

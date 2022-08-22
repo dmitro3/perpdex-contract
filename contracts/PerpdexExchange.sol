@@ -5,6 +5,7 @@ pragma abicoder v2;
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { IPerpdexExchange } from "./interfaces/IPerpdexExchange.sol";
@@ -126,64 +127,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         checkMarketOpen(params.market)
         returns (uint256 oppositeAmount)
     {
-        _settleLimitOrders(params.trader);
-        TakerLibrary.TradeResponse memory response = _doTrade(params);
-
-        if (response.rawResponse.partialOrderId != 0) {
-            address partialTrader =
-                orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialOrderId];
-            _settleLimitOrders(partialTrader, params.market);
-            int256 partialRealizedPnl =
-                MakerOrderBookLibrary.processPartialExecution(
-                    accountInfos[partialTrader],
-                    params.market,
-                    params.isBaseToQuote,
-                    maxMarketsPerAccount,
-                    response.rawResponse
-                );
-
-            emit PartiallyExecuted(
-                partialTrader,
-                params.market,
-                params.isBaseToQuote,
-                response.rawResponse.basePartial,
-                response.rawResponse.quotePartial,
-                partialRealizedPnl
-            );
-        }
-
-        uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
-        uint256 shareMarkPriceAfterX96 = IPerpdexMarketMinimum(params.market).getShareMarkPriceX96();
-
-        if (response.isLiquidation) {
-            emit PositionLiquidated(
-                params.trader,
-                params.market,
-                _msgSender(),
-                response.base,
-                response.quote,
-                response.realizedPnl,
-                response.protocolFee,
-                baseBalancePerShareX96,
-                shareMarkPriceAfterX96,
-                response.liquidationPenalty,
-                response.liquidationReward,
-                response.insuranceFundReward
-            );
-        } else {
-            emit PositionChanged(
-                params.trader,
-                params.market,
-                response.base,
-                response.quote,
-                response.realizedPnl,
-                response.protocolFee,
-                baseBalancePerShareX96,
-                shareMarkPriceAfterX96
-            );
-        }
-
-        oppositeAmount = params.isExactInput == params.isBaseToQuote ? response.quote.abs() : response.base.abs();
+        return _trade(params);
     }
 
     function addLiquidity(AddLiquidityParams calldata params)
@@ -271,9 +215,38 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         nonReentrant
         checkDeadline(params.deadline)
         checkMarketOpen(params.market)
-        returns (uint40 orderId)
+        returns (
+            uint40 orderId,
+            uint256 baseTaker,
+            uint256 quoteTaker
+        )
     {
         address trader = _msgSender();
+
+        if (params.limitOrderType != PerpdexStructs.LimitOrderType.PostOnly) {
+            bool isBaseToQuote = !params.isBid;
+            uint256 maxAmount =
+                IPerpdexMarketMinimum(params.market).maxSwapByPrice(isBaseToQuote, isBaseToQuote, params.priceX96);
+            baseTaker = Math.min(maxAmount, params.base);
+
+            if (baseTaker != 0) {
+                quoteTaker = _trade(
+                    TradeParams({
+                        trader: trader,
+                        market: params.market,
+                        isBaseToQuote: isBaseToQuote,
+                        isExactInput: isBaseToQuote,
+                        amount: baseTaker,
+                        oppositeAmountBound: isBaseToQuote ? 0 : type(uint256).max,
+                        deadline: 0 // ignored
+                    })
+                );
+            }
+        }
+
+        if (params.base == baseTaker || params.limitOrderType == PerpdexStructs.LimitOrderType.Ioc)
+            return (0, baseTaker, quoteTaker);
+
         _settleLimitOrders(trader);
 
         orderId = MakerOrderBookLibrary.createLimitOrder(
@@ -281,16 +254,26 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
             MakerOrderBookLibrary.CreateLimitOrderParams({
                 market: params.market,
                 isBid: params.isBid,
-                base: params.base,
+                base: params.base - baseTaker,
                 priceX96: params.priceX96,
                 imRatio: imRatio,
                 maxMarketsPerAccount: maxMarketsPerAccount,
-                maxOrdersPerAccount: maxOrdersPerAccount
+                maxOrdersPerAccount: maxOrdersPerAccount,
+                ignorePostOnlyCheck: params.limitOrderType == PerpdexStructs.LimitOrderType.Normal
             })
         );
-        orderIdToTrader[params.market][params.isBid][orderId] = trader;
 
-        emit LimitOrderCreated(trader, params.market, params.isBid, params.base, params.priceX96, orderId);
+        orderIdToTrader[params.market][params.isBid][orderId] = trader;
+        emit LimitOrderCreated(
+            trader,
+            params.market,
+            params.isBid,
+            params.base,
+            params.priceX96,
+            params.limitOrderType,
+            orderId,
+            baseTaker
+        );
     }
 
     function cancelLimitOrder(CancelLimitOrderParams calldata params)
@@ -456,7 +439,7 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
             );
     }
 
-    function maxTrade(MaxTradeParams calldata params) external view returns (uint256 amount) {
+    function maxTrade(MaxTradeParams memory params) external view returns (uint256 amount) {
         if (marketStatuses[params.market] != PerpdexStructs.MarketStatus.Open) return 0;
 
         address trader = params.trader;
@@ -533,7 +516,68 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     }
 
     // for avoiding stack too deep error
-    function _doTrade(TradeParams calldata params) private returns (TakerLibrary.TradeResponse memory) {
+    function _trade(TradeParams memory params) private returns (uint256 oppositeAmount) {
+        _settleLimitOrders(params.trader);
+        TakerLibrary.TradeResponse memory response = _doTrade(params);
+
+        if (response.rawResponse.partialOrderId != 0) {
+            address partialTrader =
+                orderIdToTrader[params.market][params.isBaseToQuote][response.rawResponse.partialOrderId];
+            _settleLimitOrders(partialTrader, params.market);
+            int256 partialRealizedPnl =
+                MakerOrderBookLibrary.processPartialExecution(
+                    accountInfos[partialTrader],
+                    params.market,
+                    params.isBaseToQuote,
+                    maxMarketsPerAccount,
+                    response.rawResponse
+                );
+
+            emit PartiallyExecuted(
+                partialTrader,
+                params.market,
+                params.isBaseToQuote,
+                response.rawResponse.basePartial,
+                response.rawResponse.quotePartial,
+                partialRealizedPnl
+            );
+        }
+
+        uint256 baseBalancePerShareX96 = IPerpdexMarketMinimum(params.market).baseBalancePerShareX96();
+        uint256 shareMarkPriceAfterX96 = IPerpdexMarketMinimum(params.market).getShareMarkPriceX96();
+
+        if (response.isLiquidation) {
+            emit PositionLiquidated(
+                params.trader,
+                params.market,
+                _msgSender(),
+                response.base,
+                response.quote,
+                response.realizedPnl,
+                response.protocolFee,
+                baseBalancePerShareX96,
+                shareMarkPriceAfterX96,
+                response.liquidationPenalty,
+                response.liquidationReward,
+                response.insuranceFundReward
+            );
+        } else {
+            emit PositionChanged(
+                params.trader,
+                params.market,
+                response.base,
+                response.quote,
+                response.realizedPnl,
+                response.protocolFee,
+                baseBalancePerShareX96,
+                shareMarkPriceAfterX96
+            );
+        }
+
+        oppositeAmount = params.isExactInput == params.isBaseToQuote ? response.quote.abs() : response.base.abs();
+    }
+
+    function _doTrade(TradeParams memory params) private returns (TakerLibrary.TradeResponse memory) {
         return
             TakerLibrary.trade(
                 accountInfos[params.trader],

@@ -33,6 +33,7 @@ library MakerOrderBookLibrary {
         uint24 imRatio;
         uint8 maxMarketsPerAccount;
         uint8 maxOrdersPerAccount;
+        bool ignorePostOnlyCheck;
     }
 
     struct CancelLimitOrderParams {
@@ -64,7 +65,12 @@ library MakerOrderBookLibrary {
         returns (uint40 orderId)
     {
         require(accountInfo.limitOrderCount < params.maxOrdersPerAccount, "MOBL_CLO: max order count");
-        orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(params.isBid, params.base, params.priceX96);
+        orderId = IPerpdexMarketMinimum(params.market).createLimitOrder(
+            params.isBid,
+            params.base,
+            params.priceX96,
+            params.ignorePostOnlyCheck
+        );
 
         PerpdexStructs.LimitOrderInfo storage limitOrderInfo = accountInfo.limitOrderInfos[params.market];
         uint256 slot = _getSlot(limitOrderInfo);

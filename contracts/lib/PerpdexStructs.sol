@@ -6,6 +6,7 @@ import {
 } from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 
 library PerpdexStructs {
+    enum LimitOrderType { Normal, PostOnly, Ioc }
     enum MarketStatus { NotAllowed, Open, Closed }
 
     struct TakerInfo {

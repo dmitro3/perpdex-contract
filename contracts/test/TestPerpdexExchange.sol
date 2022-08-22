@@ -77,7 +77,8 @@ contract TestPerpdexExchange is PerpdexExchange {
                     priceX96: params.priceX96,
                     imRatio: imRatio,
                     maxMarketsPerAccount: maxMarketsPerAccount,
-                    maxOrdersPerAccount: maxOrdersPerAccount
+                    maxOrdersPerAccount: maxOrdersPerAccount,
+                    ignorePostOnlyCheck: true
                 })
             );
             orderIdToTrader[market][params.isBid][orderIds[i]] = trader;

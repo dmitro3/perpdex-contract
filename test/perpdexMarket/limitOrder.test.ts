@@ -44,31 +44,31 @@ describe("PerpdexMarket limitOrder", () => {
 
     describe("createLimitOrder", () => {
         it("normal", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(true, 1, Q96, 1)
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(false, 1, Q96, 1)
         })
 
         it("multiple", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(true, 1, Q96, 1)
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(true, 1, Q96, 2)
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(false, 1, Q96, 1)
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(false, 1, Q96, 2)
         })
 
         it("caller is not exchange error", async () => {
-            await expect(market.connect(alice).createLimitOrder(true, 1, Q96)).to.be.revertedWith(
+            await expect(market.connect(alice).createLimitOrder(true, 1, Q96, false)).to.be.revertedWith(
                 "PM_OE: caller is not exchange",
             )
         })
@@ -82,30 +82,30 @@ describe("PerpdexMarket limitOrder", () => {
                     atrFeeRatio: 0,
                     atrEmaBlocks: 1,
                 })
-                await market.connect(exchange).createLimitOrder(true, 1, Q96.sub(1))
-                await market.connect(exchange).createLimitOrder(false, 1, Q96.add(1))
+                await market.connect(exchange).createLimitOrder(true, 1, Q96.sub(1), false)
+                await market.connect(exchange).createLimitOrder(false, 1, Q96.add(1), false)
             })
 
             it("ok bid", async () => {
-                await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(1)))
+                await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(1), false))
                     .to.emit(market, "LimitOrderCreated")
                     .withArgs(true, 1, Q96.add(1), 2)
             })
 
             it("ok ask", async () => {
-                await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(1)))
+                await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(1), false))
                     .to.emit(market, "LimitOrderCreated")
                     .withArgs(false, 1, Q96.sub(1), 2)
             })
 
             it("error bid", async () => {
-                await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(2))).to.be.revertedWith(
+                await expect(market.connect(exchange).createLimitOrder(true, 1, Q96.add(2), false)).to.be.revertedWith(
                     "PM_CLO: post only bid",
                 )
             })
 
             it("error ask", async () => {
-                await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(2))).to.be.revertedWith(
+                await expect(market.connect(exchange).createLimitOrder(false, 1, Q96.sub(2), false)).to.be.revertedWith(
                     "PM_CLO: post only ask",
                 )
             })
@@ -114,14 +114,14 @@ describe("PerpdexMarket limitOrder", () => {
 
     describe("cancelLimitOrder", () => {
         it("normal", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(true, 1, Q96, 1)
             await expect(market.connect(exchange).cancelLimitOrder(true, 1))
                 .to.emit(market, "LimitOrderCanceled")
                 .withArgs(true, 1)
 
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(false, 1, Q96, 1)
             await expect(market.connect(exchange).cancelLimitOrder(false, 1))
@@ -134,14 +134,14 @@ describe("PerpdexMarket limitOrder", () => {
         })
 
         it("different side ask", async () => {
-            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(true, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(true, 1, Q96, 1)
             await expect(market.connect(exchange).cancelLimitOrder(false, 1)).to.revertedWith("RBTL_R: key not exist")
         })
 
         it("different side bid", async () => {
-            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96))
+            await expect(market.connect(exchange).createLimitOrder(false, 1, Q96, false))
                 .to.emit(market, "LimitOrderCreated")
                 .withArgs(false, 1, Q96, 1)
             await expect(market.connect(exchange).cancelLimitOrder(true, 1)).to.revertedWith("RBTL_R: key not exist")

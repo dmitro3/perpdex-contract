@@ -1,6 +1,6 @@
 import { expect } from "chai"
 import { waffle } from "hardhat"
-import { PerpdexMarket } from "../../typechain"
+import { TestPerpdexMarket } from "../../typechain"
 import { createPerpdexMarketFixture } from "./fixtures"
 import { BigNumber, BigNumberish, Wallet } from "ethers"
 import { MockContract } from "ethereum-waffle"
@@ -9,7 +9,7 @@ describe("PerpdexMarket maxSwapByPrice", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
     let fixture
 
-    let market: PerpdexMarket
+    let market: TestPerpdexMarket
     let owner: Wallet
     let alice: Wallet
     let exchange: Wallet
@@ -47,68 +47,91 @@ describe("PerpdexMarket maxSwapByPrice", () => {
                 atrFeeRatio: 0,
                 atrEmaBlocks: 1,
             })
-            await market.connect(exchange).addLiquidity(10000, 10000)
         })
         ;[
             {
                 title: "long exact input",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: false,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.mul(2),
+                priceBoundX96: Q96.mul(2),
                 amount: 3881,
             },
             {
                 title: "short exact input",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: true,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.div(2),
+                priceBoundX96: Q96.div(2),
                 amount: 3881,
             },
             {
                 title: "long exact output",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: false,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.mul(2),
+                priceBoundX96: Q96.mul(2),
                 amount: 2693,
             },
             {
                 title: "short exact output",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: true,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.div(2),
+                priceBoundX96: Q96.div(2),
                 amount: 2693,
             },
             {
                 title: "long exact input. smaller than fee",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: false,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.mul(101).div(100),
+                priceBoundX96: Q96.mul(101).div(100),
                 amount: 0,
             },
             {
                 title: "short exact input. smaller than fee",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: true,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.mul(99).div(100),
+                priceBoundX96: Q96.mul(99).div(100),
                 amount: 0,
             },
             {
                 title: "long exact output. smaller than fee",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: false,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.mul(101).div(100),
+                priceBoundX96: Q96.mul(101).div(100),
                 amount: 0,
             },
             {
                 title: "short exact output. smaller than fee",
+                baseBalancePerShareX96: Q96,
                 isBaseToQuote: true,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.mul(99).div(100),
+                priceBoundX96: Q96.mul(99).div(100),
                 amount: 0,
+            },
+            {
+                title: "long exact input. price is not share price",
+                baseBalancePerShareX96: Q96.mul(2),
+                isBaseToQuote: false,
+                isExactInput: true,
+                priceBoundX96: Q96.mul(2).div(2),
+                amount: 3881,
             },
         ].forEach(test => {
             it(test.title, async () => {
-                const res = await market.maxSwapByPrice(test.isBaseToQuote, test.isExactInput, test.sharePriceBoundX96)
+                await market.setPoolInfo({
+                    base: 10000,
+                    quote: 10000,
+                    totalLiquidity: 10000,
+                    cumBasePerLiquidityX96: 0,
+                    cumQuotePerLiquidityX96: 0,
+                    baseBalancePerShareX96: test.baseBalancePerShareX96,
+                })
+                const res = await market.maxSwapByPrice(test.isBaseToQuote, test.isExactInput, test.priceBoundX96)
                 expect(res).to.eq(test.amount)
             })
         })
@@ -126,61 +149,61 @@ describe("PerpdexMarket maxSwapByPrice", () => {
                 title: "long exact input",
                 isBaseToQuote: false,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.mul(2),
+                priceBoundX96: Q96.mul(2),
                 amount: 4142,
             },
             {
                 title: "short exact input",
                 isBaseToQuote: true,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.div(2),
+                priceBoundX96: Q96.div(2),
                 amount: 4142,
             },
             {
                 title: "long exact output",
                 isBaseToQuote: false,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.mul(2),
+                priceBoundX96: Q96.mul(2),
                 amount: 2928,
             },
             {
                 title: "short exact output",
                 isBaseToQuote: true,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.div(2),
+                priceBoundX96: Q96.div(2),
                 amount: 2928,
             },
             {
                 title: "long exact input. out of range",
                 isBaseToQuote: false,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.div(2),
+                priceBoundX96: Q96.div(2),
                 amount: 0,
             },
             {
                 title: "short exact input. out of range",
                 isBaseToQuote: true,
                 isExactInput: true,
-                sharePriceBoundX96: Q96.mul(2),
+                priceBoundX96: Q96.mul(2),
                 amount: 0,
             },
             {
                 title: "long exact output. out of range",
                 isBaseToQuote: false,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.div(2),
+                priceBoundX96: Q96.div(2),
                 amount: 0,
             },
             {
                 title: "short exact output. out of range",
                 isBaseToQuote: true,
                 isExactInput: false,
-                sharePriceBoundX96: Q96.mul(2),
+                priceBoundX96: Q96.mul(2),
                 amount: 0,
             },
         ].forEach(test => {
             it(test.title, async () => {
-                const res = await market.maxSwapByPrice(test.isBaseToQuote, test.isExactInput, test.sharePriceBoundX96)
+                const res = await market.maxSwapByPrice(test.isBaseToQuote, test.isExactInput, test.priceBoundX96)
                 expect(res).to.eq(test.amount)
             })
         })

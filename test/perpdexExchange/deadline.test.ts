@@ -4,6 +4,7 @@ import { TestPerpdexExchange, TestPerpdexMarket } from "../../typechain"
 import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, Wallet } from "ethers"
 import { getTimestamp, setNextTimestamp } from "../helper/time"
+import { LimitOrderType } from "../helper/types"
 
 describe("PerpdexExchange deadline", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -14,6 +15,8 @@ describe("PerpdexExchange deadline", () => {
     let owner: Wallet
     let alice: Wallet
     let nextBlockTimestamp: number
+
+    const Q96 = BigNumber.from(2).pow(96)
 
     beforeEach(async () => {
         fixture = await loadFixture(createPerpdexExchangeFixture({ isMarketAllowed: true }))
@@ -44,8 +47,9 @@ describe("PerpdexExchange deadline", () => {
             market: market.address,
             isBid: true,
             base: 1,
-            priceX96: 1,
+            priceX96: Q96,
             deadline: nextBlockTimestamp + 1,
+            limitOrderType: LimitOrderType.PostOnly,
         })
 
         await setNextTimestamp(nextBlockTimestamp)
@@ -184,8 +188,9 @@ describe("PerpdexExchange deadline", () => {
                     market: market.address,
                     isBid: true,
                     base: 1,
-                    priceX96: 1,
+                    priceX96: Q96,
                     deadline: nextBlockTimestamp + 1,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).not.to.revertedWith("PE_CD: too late")
         })
@@ -196,8 +201,9 @@ describe("PerpdexExchange deadline", () => {
                     market: market.address,
                     isBid: true,
                     base: 1,
-                    priceX96: 1,
+                    priceX96: Q96,
                     deadline: nextBlockTimestamp,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).not.to.revertedWith("PE_CD: too late")
         })
@@ -208,8 +214,9 @@ describe("PerpdexExchange deadline", () => {
                     market: market.address,
                     isBid: true,
                     base: 1,
-                    priceX96: 1,
+                    priceX96: Q96,
                     deadline: nextBlockTimestamp - 1,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).to.revertedWith("PE_CD: too late")
         })

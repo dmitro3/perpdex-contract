@@ -5,7 +5,7 @@ import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, Wallet } from "ethers"
 import { getTimestamp, setNextTimestamp } from "../helper/time"
 import { MockContract } from "ethereum-waffle"
-import { MarketStatus } from "../helper/types"
+import { LimitOrderType, MarketStatus } from "../helper/types"
 
 describe("PerpdexExchange trade", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -652,6 +652,7 @@ describe("PerpdexExchange trade", () => {
                             await exchange.connect(alice).createLimitOrder({
                                 market: market.address,
                                 deadline: deadline,
+                                limitOrderType: LimitOrderType.PostOnly,
                                 ...test.orders[i],
                             })
                         }

@@ -3,6 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexExchange, TestPerpdexMarket } from "../../typechain"
 import { createPerpdexExchangeFixture } from "./fixtures"
 import { BigNumber, Wallet } from "ethers"
+import { LimitOrderType } from "../helper/types"
 
 describe("PerpdexExchange updateMarkets", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -70,6 +71,7 @@ describe("PerpdexExchange updateMarkets", () => {
             base: 1,
             priceX96: Q96,
             deadline: deadline,
+            limitOrderType: LimitOrderType.PostOnly,
         })
     }
 

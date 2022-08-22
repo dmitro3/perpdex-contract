@@ -3,7 +3,7 @@ import { waffle } from "hardhat"
 import { TestPerpdexMarket, TestPerpdexExchange } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../fixtures"
 import { BigNumber, Wallet } from "ethers"
-import { MarketStatus } from "../../helper/types"
+import { LimitOrderType, MarketStatus } from "../../helper/types"
 
 describe("PerpdexExchange limitOrder", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -58,10 +58,11 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, true, 1, Q96, 1)
+                .withArgs(alice.address, market.address, true, 1, Q96, LimitOrderType.PostOnly, 1, 0)
 
             await expect(
                 exchange.connect(alice).createLimitOrder({
@@ -70,10 +71,11 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, false, 1, Q96, 1)
+                .withArgs(alice.address, market.address, false, 1, Q96, LimitOrderType.PostOnly, 1, 0)
 
             await assertLimitOrderCount(2)
             await assertTotalBase([1, 1])
@@ -90,21 +92,23 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, true, 1, Q96, 1)
+                .withArgs(alice.address, market.address, true, 1, Q96, LimitOrderType.PostOnly, 1, 0)
             await expect(
                 exchange.connect(alice).createLimitOrder({
                     market: market.address,
                     isBid: true,
                     base: 1,
-                    priceX96: Q96,
+                    priceX96: Q96.div(100),
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, true, 1, Q96, 2)
+                .withArgs(alice.address, market.address, true, 1, Q96.div(100), LimitOrderType.PostOnly, 2, 0)
 
             await expect(
                 exchange.connect(alice).createLimitOrder({
@@ -113,21 +117,23 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, false, 1, Q96, 1)
+                .withArgs(alice.address, market.address, false, 1, Q96, LimitOrderType.PostOnly, 1, 0)
             await expect(
                 exchange.connect(alice).createLimitOrder({
                     market: market.address,
                     isBid: false,
                     base: 1,
-                    priceX96: Q96,
+                    priceX96: Q96.mul(100),
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, false, 1, Q96, 2)
+                .withArgs(alice.address, market.address, false, 1, Q96.mul(100), LimitOrderType.PostOnly, 2, 0)
 
             await assertLimitOrderCount(4)
             await assertTotalBase([2, 2])
@@ -146,10 +152,11 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, true, 1, Q96, 1)
+                .withArgs(alice.address, market.address, true, 1, Q96, LimitOrderType.PostOnly, 1, 0)
             await expect(
                 exchange.connect(alice).createLimitOrder({
                     market: market.address,
@@ -157,10 +164,11 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             )
                 .to.emit(exchange, "LimitOrderCreated")
-                .withArgs(alice.address, market.address, false, 1, Q96, 1)
+                .withArgs(alice.address, market.address, false, 1, Q96, LimitOrderType.PostOnly, 1, 0)
 
             await expect(
                 exchange.connect(alice).createLimitOrder({
@@ -169,6 +177,7 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).to.be.revertedWith("MOBL_CLO: max order count")
         })
@@ -181,6 +190,7 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1000001,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).to.be.revertedWith("MOBL_CLO: not enough im")
         })
@@ -193,20 +203,41 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 0,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
-            ).to.be.revertedWith("OBL_CO: base is zero")
+            ).not.to.emit(exchange, "LimitOrderCreated")
+
+            await assertLimitOrderCount(0)
+            await assertTotalBase([0, 0])
+            await assertMarkets([])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, true)).to.deep.eq([])
+            expect(await exchange.getLimitOrderIds(alice.address, market.address, false)).to.deep.eq([])
         })
 
-        it("price is zero", async () => {
+        it("price is too small", async () => {
             await expect(
                 exchange.connect(alice).createLimitOrder({
                     market: market.address,
                     isBid: true,
                     base: 1,
-                    priceX96: 0,
+                    priceX96: Q96.div(100).sub(1),
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
-            ).to.be.revertedWith("OBL_CO: price is zero")
+            ).to.be.revertedWith("OBL_CO: price too small")
+        })
+
+        it("price is too large", async () => {
+            await expect(
+                exchange.connect(alice).createLimitOrder({
+                    market: market.address,
+                    isBid: false,
+                    base: 1,
+                    priceX96: Q96.mul(100).add(1),
+                    deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
+                }),
+            ).to.be.revertedWith("OBL_CO: price too large")
         })
 
         it("market not allowed", async () => {
@@ -218,6 +249,7 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).to.revertedWith("PE_CMO: market not open")
         })
@@ -231,6 +263,7 @@ describe("PerpdexExchange limitOrder", () => {
                     base: 1,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 }),
             ).to.revertedWith("PE_CMO: market not open")
         })

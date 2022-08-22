@@ -57,6 +57,7 @@ interface IPerpdexExchange {
         uint256 base;
         uint256 priceX96;
         uint256 deadline;
+        PerpdexStructs.LimitOrderType limitOrderType;
     }
 
     struct CancelLimitOrderParams {
@@ -125,7 +126,9 @@ interface IPerpdexExchange {
         bool isBid,
         uint256 base,
         uint256 priceX96,
-        uint256 orderId
+        PerpdexStructs.LimitOrderType limitOrderType,
+        uint256 orderId,
+        uint256 baseTaker
     );
 
     event LimitOrderCanceled(
@@ -177,7 +180,13 @@ interface IPerpdexExchange {
 
     function removeLiquidity(RemoveLiquidityParams calldata params) external returns (uint256 base, uint256 quote);
 
-    function createLimitOrder(CreateLimitOrderParams calldata params) external returns (uint40 orderId);
+    function createLimitOrder(CreateLimitOrderParams calldata params)
+        external
+        returns (
+            uint40 orderId,
+            uint256 baseTaker,
+            uint256 quoteTaker
+        );
 
     function cancelLimitOrder(CancelLimitOrderParams calldata params) external;
 

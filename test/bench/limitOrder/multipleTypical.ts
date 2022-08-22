@@ -3,6 +3,7 @@ import { TestPerpdexExchange, TestPerpdexMarket } from "../../../typechain"
 import { createPerpdexExchangeFixture } from "../../perpdexExchange/fixtures"
 import { BigNumber, BigNumberish, Wallet } from "ethers"
 import { MockContract } from "ethereum-waffle"
+import { LimitOrderType } from "../../helper/types"
 
 describe("gas benchmark limit order", () => {
     let loadFixture = waffle.createFixtureLoader(waffle.provider.getWallets())
@@ -88,6 +89,7 @@ describe("gas benchmark limit order", () => {
                     base: 100,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 })
                 await exchange.connect(bob).createLimitOrder({
                     market: market.address,
@@ -95,6 +97,7 @@ describe("gas benchmark limit order", () => {
                     base: 100,
                     priceX96: Q96,
                     deadline: deadline,
+                    limitOrderType: LimitOrderType.PostOnly,
                 })
             }
 

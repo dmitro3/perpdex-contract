@@ -83,6 +83,6 @@ contract TestOrderBookLibrary {
     }
 
     function createOrder(CreateOrderParams calldata params) private {
-        OrderBookLibrary.createOrder(info, params.isBid, params.base, params.priceX96);
+        OrderBookLibrary.createOrder(info, params.isBid, params.base, params.priceX96, FixedPoint96.Q96);
     }
 }

@@ -9,6 +9,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
+import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import { IPerpdexMarket } from "./interfaces/IPerpdexMarket.sol";
 import { MarketStructs } from "./lib/MarketStructs.sol";
 import { FundingLibrary } from "./lib/FundingLibrary.sol";
@@ -186,14 +187,17 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     function createLimitOrder(
         bool isBid,
         uint256 base,
-        uint256 priceX96
+        uint256 priceX96,
+        bool ignorePostOnlyCheck
     ) external onlyExchange nonReentrant returns (uint40 orderId) {
-        if (isBid) {
-            require(priceX96 <= getAskPriceX96(), "PM_CLO: post only bid");
-        } else {
-            require(priceX96 >= getBidPriceX96(), "PM_CLO: post only ask");
+        if (!ignorePostOnlyCheck) {
+            if (isBid) {
+                require(priceX96 <= getAskPriceX96(), "PM_CLO: post only bid");
+            } else {
+                require(priceX96 >= getBidPriceX96(), "PM_CLO: post only ask");
+            }
         }
-        orderId = OrderBookLibrary.createOrder(_orderBookInfo, isBid, base, priceX96);
+        orderId = OrderBookLibrary.createOrder(_orderBookInfo, isBid, base, priceX96, getMarkPriceX96());
         emit LimitOrderCreated(isBid, base, priceX96, orderId);
     }
 
@@ -302,8 +306,9 @@ contract PerpdexMarket is IPerpdexMarket, ReentrancyGuard, Ownable, Multicall {
     function maxSwapByPrice(
         bool isBaseToQuote,
         bool isExactInput,
-        uint256 sharePriceX96
+        uint256 priceX96
     ) external view returns (uint256 amount) {
+        uint256 sharePriceX96 = Math.mulDiv(priceX96, poolInfo.baseBalancePerShareX96, FixedPoint96.Q96);
         (amount, ) = _doMaxSwap(isBaseToQuote, isExactInput, false, sharePriceX96);
     }
 
