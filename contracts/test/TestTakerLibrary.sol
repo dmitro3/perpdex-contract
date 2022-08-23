@@ -2,6 +2,7 @@
 pragma solidity >=0.7.6;
 pragma abicoder v2;
 
+import { AccountLibrary } from "../lib/AccountLibrary.sol";
 import { TakerLibrary } from "../lib/TakerLibrary.sol";
 import { PerpdexStructs } from "../lib/PerpdexStructs.sol";
 
@@ -29,7 +30,7 @@ contract TestTakerLibrary {
         uint8 maxMarketsPerAccount
     ) external {
         int256 realizedPnl =
-            TakerLibrary.addToTakerBalance(
+            AccountLibrary.addToTakerBalance(
                 accountInfo,
                 market,
                 baseShare,

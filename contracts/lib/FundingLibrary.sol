@@ -30,13 +30,13 @@ library FundingLibrary {
 
     uint8 public constant MAX_DECIMALS = 77; // 10^MAX_DECIMALS < 2^256
 
-    function initializeFunding(MarketStructs.FundingInfo storage fundingInfo) internal {
+    function initializeFunding(MarketStructs.FundingInfo storage fundingInfo) external {
         fundingInfo.prevIndexPriceTimestamp = block.timestamp;
     }
 
     // must not revert even if priceFeed is malicious
     function processFunding(MarketStructs.FundingInfo storage fundingInfo, ProcessFundingParams memory params)
-        internal
+        external
         returns (
             int256 fundingRateX96,
             uint32 elapsedSec,
@@ -80,7 +80,7 @@ library FundingLibrary {
         address priceFeedQuote,
         uint256 base,
         uint256 quote
-    ) internal view {
+    ) external view {
         uint256 indexPriceBase = _getIndexPriceSafe(priceFeedBase);
         uint256 indexPriceQuote = _getIndexPriceSafe(priceFeedQuote);
         require(indexPriceBase > 0, "FL_VILP: invalid base price");

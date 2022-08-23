@@ -11,7 +11,6 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
 import { AccountLibrary } from "./AccountLibrary.sol";
-import { TakerLibrary } from "./TakerLibrary.sol";
 
 library MakerLibrary {
     using PerpMath for int256;
@@ -157,7 +156,7 @@ library MakerLibrary {
                 -response.takerBase.mulDiv(shareMarkPriceBeforeX96.toInt256(), FixedPoint96.Q96);
 
             // AccountLibrary.updateMarkets called
-            response.realizedPnl = TakerLibrary.addToTakerBalance(
+            response.realizedPnl = AccountLibrary.addToTakerBalance(
                 accountInfo,
                 params.market,
                 response.takerBase,

@@ -22,6 +22,7 @@ describe("PerpdexMarket constructor", () => {
             libraries: {
                 OrderBookLibrary: fixture.orderBookLibrary.address,
                 CandleLibrary: fixture.candleLibrary.address,
+                FundingLibrary: fixture.fundingLibrary.address,
             },
         })
     })

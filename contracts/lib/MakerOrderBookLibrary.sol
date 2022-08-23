@@ -11,7 +11,6 @@ import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
 import { AccountLibrary } from "./AccountLibrary.sol";
 import { AccountPreviewLibrary } from "./AccountPreviewLibrary.sol";
-import { TakerLibrary } from "./TakerLibrary.sol";
 import {
     BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
 } from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
@@ -180,7 +179,7 @@ library MakerOrderBookLibrary {
         } else {
             limitOrderInfo.totalBaseAsk -= rawResponse.basePartial;
         }
-        realizedPnl = TakerLibrary.addToTakerBalance(
+        realizedPnl = AccountLibrary.addToTakerBalance(
             accountInfo,
             market,
             isBaseToQuote ? rawResponse.basePartial.toInt256() : rawResponse.basePartial.neg256(),

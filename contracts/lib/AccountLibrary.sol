@@ -41,11 +41,29 @@ library AccountLibrary {
         bool isLiquidationFree;
     }
 
+    function addToTakerBalance(
+        PerpdexStructs.AccountInfo storage accountInfo,
+        address market,
+        int256 baseShare,
+        int256 quoteBalance,
+        int256 quoteFee,
+        uint8 maxMarketsPerAccount
+    ) external returns (int256 realizedPnl) {
+        (accountInfo.takerInfos[market], realizedPnl) = AccountPreviewLibrary.previewAddToTakerBalance(
+            accountInfo.takerInfos[market],
+            baseShare,
+            quoteBalance,
+            quoteFee
+        );
+        accountInfo.vaultInfo.collateralBalance += realizedPnl;
+        updateMarkets(accountInfo, market, maxMarketsPerAccount);
+    }
+
     function updateMarkets(
         PerpdexStructs.AccountInfo storage accountInfo,
         address market,
         uint8 maxMarketsPerAccount
-    ) external {
+    ) public {
         bool enabled =
             accountInfo.takerInfos[market].baseBalanceShare != 0 ||
                 accountInfo.makerInfos[market].liquidity != 0 ||

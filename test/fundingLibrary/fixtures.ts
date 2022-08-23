@@ -11,7 +11,14 @@ interface FundingLibraryFixture {
 
 export function createFundingLibraryFixture(): (wallets, provider) => Promise<FundingLibraryFixture> {
     return async ([owner], provider): Promise<FundingLibraryFixture> => {
-        const factory = await ethers.getContractFactory("TestFundingLibrary")
+        const fundingLibraryFactory = await ethers.getContractFactory("FundingLibrary")
+        const fundingLib = await fundingLibraryFactory.deploy()
+
+        const factory = await ethers.getContractFactory("TestFundingLibrary", {
+            libraries: {
+                FundingLibrary: fundingLib.address,
+            },
+        })
         const fundingLibrary = (await factory.deploy()) as TestFundingLibrary
 
         const priceFeedBase = await waffle.deployMockContract(owner, IPerpdexPriceFeedJson.abi)

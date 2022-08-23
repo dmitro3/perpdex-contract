@@ -106,6 +106,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     })
     const candleLibrary = await deployments.get("CandleLibrary")
 
+    await deploy("FundingLibrary", {
+        from: deployer,
+        log: true,
+        autoMine: true,
+    })
+    const fundingLibrary = await deployments.get("FundingLibrary")
+
     const perpdexExchange = await deployments.get("PerpdexExchange")
 
     for (let i = 0; i < markets.length; i++) {
@@ -128,6 +135,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             libraries: {
                 OrderBookLibrary: orderBookLibrary.address,
                 CandleLibrary: candleLibrary.address,
+                FundingLibrary: fundingLibrary.address,
             },
         })
 

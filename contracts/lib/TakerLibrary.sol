@@ -118,26 +118,6 @@ library TakerLibrary {
         }
     }
 
-    function addToTakerBalance(
-        PerpdexStructs.AccountInfo storage accountInfo,
-        address market,
-        int256 baseShare,
-        int256 quoteBalance,
-        int256 quoteFee,
-        uint8 maxMarketsPerAccount
-    ) internal returns (int256 realizedPnl) {
-        (accountInfo.takerInfos[market], realizedPnl) = AccountPreviewLibrary.previewAddToTakerBalance(
-            accountInfo.takerInfos[market],
-            baseShare,
-            quoteBalance,
-            quoteFee
-        );
-
-        accountInfo.vaultInfo.collateralBalance += realizedPnl;
-
-        AccountLibrary.updateMarkets(accountInfo, market, maxMarketsPerAccount);
-    }
-
     // Even if trade reverts, it may not revert.
     // Attempting to match reverts makes the implementation too complicated
     // ignored checks when liquidation:
@@ -241,7 +221,14 @@ library TakerLibrary {
             params.amount,
             oppositeAmount
         );
-        realizedPnl = addToTakerBalance(accountInfo, params.market, base, quote, 0, params.maxMarketsPerAccount);
+        realizedPnl = AccountLibrary.addToTakerBalance(
+            accountInfo,
+            params.market,
+            base,
+            quote,
+            0,
+            params.maxMarketsPerAccount
+        );
     }
 
     function swapWithProtocolFee(

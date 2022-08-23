@@ -81,10 +81,14 @@ export function createPerpdexExchangeFixture(
         const candleLibraryFactory = await ethers.getContractFactory("CandleLibrary")
         const candleLibrary = await candleLibraryFactory.deploy()
 
+        const fundingLibraryFactory = await ethers.getContractFactory("FundingLibrary")
+        const fundingLibrary = await fundingLibraryFactory.deploy()
+
         const perpdexMarketFactory = await ethers.getContractFactory("TestPerpdexMarket", {
             libraries: {
                 CandleLibrary: candleLibrary.address,
                 OrderBookLibrary: orderBookLibrary.address,
+                FundingLibrary: fundingLibrary.address,
             },
         })
         const perpdexMarkets = []

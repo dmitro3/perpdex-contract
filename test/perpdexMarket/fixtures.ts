@@ -13,6 +13,7 @@ interface PerpdexMarketFixture {
     exchange: Wallet
     orderBookLibrary: any
     candleLibrary: any
+    fundingLibrary: any
 }
 
 interface Params {
@@ -32,10 +33,14 @@ export function createPerpdexMarketFixture(params: Params = {}): (wallets, provi
         const candleLibraryFactory = await ethers.getContractFactory("CandleLibrary")
         const candleLibrary = await candleLibraryFactory.deploy()
 
+        const fundingLibraryFactory = await ethers.getContractFactory("FundingLibrary")
+        const fundingLibrary = await fundingLibraryFactory.deploy()
+
         const perpdexMarketFactory = await ethers.getContractFactory("TestPerpdexMarket", {
             libraries: {
                 CandleLibrary: candleLibrary.address,
                 OrderBookLibrary: orderBookLibrary.address,
+                FundingLibrary: fundingLibrary.address,
             },
         })
         const perpdexMarket = (await perpdexMarketFactory.deploy(
@@ -63,6 +68,7 @@ export function createPerpdexMarketFixture(params: Params = {}): (wallets, provi
             exchange,
             orderBookLibrary,
             candleLibrary,
+            fundingLibrary,
         }
     }
 }
