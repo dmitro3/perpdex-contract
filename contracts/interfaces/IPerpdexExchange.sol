@@ -156,6 +156,8 @@ interface IPerpdexExchange {
         int256 realizedPnl
     );
 
+    event MarketClosed(address indexed trader, address indexed market, int256 realizedPnl);
+
     event MaxMarketsPerAccountChanged(uint8 value);
     event MaxOrdersPerAccountChanged(uint8 value);
     event ImRatioChanged(uint24 value);

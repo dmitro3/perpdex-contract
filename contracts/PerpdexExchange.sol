@@ -311,7 +311,8 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     function closeMarket(address market) external nonReentrant checkMarketClosed(market) {
         address trader = _msgSender();
         _settleLimitOrders(trader);
-        AccountLibrary.closeMarket(accountInfos[trader], market);
+        int256 realizedPnl = AccountLibrary.closeMarket(accountInfos[trader], market);
+        emit MarketClosed(trader, market, realizedPnl);
     }
 
     function _settleLimitOrders(address trader) internal {
