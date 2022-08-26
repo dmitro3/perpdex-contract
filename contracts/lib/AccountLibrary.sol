@@ -75,11 +75,12 @@ library AccountLibrary {
 
     function closeMarket(PerpdexStructs.AccountInfo storage accountInfo, address market)
         external
-        returns (int256 realizedPnl)
+        returns (int256 positionValue, int256 realizedPnl)
     {
         require(_marketExists(accountInfo, market), "AL_CM: market not exist");
         CalcMarketResponse memory response = _calcMarket(accountInfo, market);
         accountInfo.vaultInfo.collateralBalance += response.positionValue + response.realizedPnl;
+        positionValue = response.positionValue;
         realizedPnl = response.realizedPnl;
         _setMarketEnabled(accountInfo, market, 0, false);
     }
