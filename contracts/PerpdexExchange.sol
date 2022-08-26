@@ -83,18 +83,18 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
             emit CollateralCompensated(trader, compensation);
         }
 
-        if (settlementToken == address(0)) {
-            require(amount == 0, "PE_D: amount not zero");
-            VaultLibrary.depositEth(accountInfos[trader], msg.value);
-            emit Deposited(trader, msg.value);
-        } else {
-            require(msg.value == 0, "PE_D: msg.value not zero");
+        uint256 depositedAmount =
             VaultLibrary.deposit(
                 accountInfos[trader],
-                VaultLibrary.DepositParams({ settlementToken: settlementToken, amount: amount, from: trader })
+                VaultLibrary.DepositParams({
+                    settlementToken: settlementToken,
+                    amount: amount,
+                    callValue: msg.value,
+                    from: trader
+                })
             );
-            emit Deposited(trader, amount);
-        }
+
+        emit Deposited(trader, depositedAmount);
     }
 
     function withdraw(uint256 amount) external nonReentrant {
@@ -519,7 +519,26 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
     // for avoiding stack too deep error
     function _trade(TradeParams memory params) private returns (uint256 oppositeAmount) {
         _settleLimitOrders(params.trader);
-        TakerLibrary.TradeResponse memory response = _doTrade(params);
+        TakerLibrary.TradeResponse memory response =
+            TakerLibrary.trade(
+                accountInfos[params.trader],
+                accountInfos[_msgSender()].vaultInfo,
+                insuranceFundInfo,
+                protocolInfo,
+                TakerLibrary.TradeParams({
+                    market: params.market,
+                    isBaseToQuote: params.isBaseToQuote,
+                    isExactInput: params.isExactInput,
+                    amount: params.amount,
+                    oppositeAmountBound: params.oppositeAmountBound,
+                    mmRatio: mmRatio,
+                    imRatio: imRatio,
+                    maxMarketsPerAccount: maxMarketsPerAccount,
+                    protocolFeeRatio: protocolFeeRatio,
+                    liquidationRewardConfig: liquidationRewardConfig,
+                    isSelf: params.trader == _msgSender()
+                })
+            );
 
         if (response.rawResponse.partialOrderId != 0) {
             address partialTrader =
@@ -576,29 +595,6 @@ contract PerpdexExchange is IPerpdexExchange, ReentrancyGuard, Ownable, Multical
         }
 
         oppositeAmount = params.isExactInput == params.isBaseToQuote ? response.quote.abs() : response.base.abs();
-    }
-
-    function _doTrade(TradeParams memory params) private returns (TakerLibrary.TradeResponse memory) {
-        return
-            TakerLibrary.trade(
-                accountInfos[params.trader],
-                accountInfos[_msgSender()].vaultInfo,
-                insuranceFundInfo,
-                protocolInfo,
-                TakerLibrary.TradeParams({
-                    market: params.market,
-                    isBaseToQuote: params.isBaseToQuote,
-                    isExactInput: params.isExactInput,
-                    amount: params.amount,
-                    oppositeAmountBound: params.oppositeAmountBound,
-                    mmRatio: mmRatio,
-                    imRatio: imRatio,
-                    maxMarketsPerAccount: maxMarketsPerAccount,
-                    protocolFeeRatio: protocolFeeRatio,
-                    liquidationRewardConfig: liquidationRewardConfig,
-                    isSelf: params.trader == _msgSender()
-                })
-            );
     }
 
     function _setMarketStatus(address market, PerpdexStructs.MarketStatus status) private {

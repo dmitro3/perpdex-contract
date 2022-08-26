@@ -27,12 +27,12 @@ describe("Vault deposit eth", () => {
 
         it("force error, amount is not zero", async () => {
             await expect(exchange.connect(alice).deposit(100, { value: 100 })).to.be.revertedWith(
-                "PE_D: amount not zero",
+                "VL_D: amount not zero",
             )
         })
 
         it("force error, zero amount", async () => {
-            await expect(exchange.connect(alice).deposit(0, { value: 0 })).to.be.revertedWith("VL_DE: zero amount")
+            await expect(exchange.connect(alice).deposit(0, { value: 0 })).to.be.revertedWith("VL_D: call value zero")
         })
     })
 })

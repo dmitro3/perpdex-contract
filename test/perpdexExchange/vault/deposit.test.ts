@@ -76,7 +76,7 @@ describe("Vault deposit test", () => {
         it("force error, value is not zero", async () => {
             const amount = parseUsdc("100")
             await expect(exchange.connect(alice).deposit(amount, { value: 1 })).to.be.revertedWith(
-                "PE_D: msg.value not zero",
+                "VL_D: call value not zero",
             )
         })
     })

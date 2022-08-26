@@ -22,7 +22,7 @@ const config: HardhatUserConfig = {
     solidity: {
         version: "0.8.16",
         settings: {
-            optimizer: { enabled: true, runs: 40 },
+            optimizer: { enabled: true, runs: 180 },
         },
     },
     zksolc: {

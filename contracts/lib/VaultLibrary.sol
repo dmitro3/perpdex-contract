@@ -23,6 +23,7 @@ library VaultLibrary {
     struct DepositParams {
         address settlementToken;
         uint256 amount;
+        uint256 callValue;
         address from;
     }
 
@@ -44,17 +45,25 @@ library VaultLibrary {
         insuranceFundInfo.balance -= compensation;
     }
 
-    function deposit(PerpdexStructs.AccountInfo storage accountInfo, DepositParams memory params) external {
-        require(params.amount > 0, "VL_D: zero amount");
-        _transferTokenIn(params.settlementToken, params.from, params.amount);
-        uint256 collateralAmount =
-            _toCollateralAmount(params.amount, IERC20Metadata(params.settlementToken).decimals());
-        accountInfo.vaultInfo.collateralBalance += collateralAmount.toInt256();
-    }
+    function deposit(PerpdexStructs.AccountInfo storage accountInfo, DepositParams memory params)
+        external
+        returns (uint256 amount)
+    {
+        uint256 collateralAmount;
+        if (params.settlementToken == address(0)) {
+            require(params.amount == 0, "VL_D: amount not zero");
+            require(params.callValue > 0, "VL_D: call value zero");
+            amount = params.callValue;
+            collateralAmount = amount;
+        } else {
+            require(params.callValue == 0, "VL_D: call value not zero");
+            require(params.amount > 0, "VL_D: zero amount");
+            amount = params.amount;
+            _transferTokenIn(params.settlementToken, params.from, amount);
+            collateralAmount = _toCollateralAmount(amount, IERC20Metadata(params.settlementToken).decimals());
+        }
 
-    function depositEth(PerpdexStructs.AccountInfo storage accountInfo, uint256 amount) external {
-        require(amount > 0, "VL_DE: zero amount");
-        accountInfo.vaultInfo.collateralBalance += amount.toInt256();
+        accountInfo.vaultInfo.collateralBalance += collateralAmount.toInt256();
     }
 
     function withdraw(PerpdexStructs.AccountInfo storage accountInfo, WithdrawParams memory params) external {
