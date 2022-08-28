@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.7.6;
-pragma abicoder v2;
+pragma solidity >=0.8.0;
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
-import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
 import { PerpMath } from "./PerpMath.sol";
 import { PerpdexStructs } from "./PerpdexStructs.sol";
@@ -19,7 +16,6 @@ library AccountPreviewLibrary {
     using PerpMath for uint256;
     using SafeCast for int256;
     using SafeCast for uint256;
-    using SafeMath for uint256;
     using SignedSafeMath for int256;
     using RBTreeLibrary for RBTreeLibrary.Tree;
 

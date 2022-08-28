@@ -1,25 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.7.6;
-pragma abicoder v2;
+pragma solidity >=0.8.0;
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import { SignedSafeMath } from "@openzeppelin/contracts/utils/math/SignedSafeMath.sol";
-import { PerpMath } from "./PerpMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { MarketStructs } from "./MarketStructs.sol";
 import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
+import { MarketStructs } from "./MarketStructs.sol";
 import {
     BokkyPooBahsRedBlackTreeLibrary as RBTreeLibrary
 } from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 
 library OrderBookLibrary {
-    using PerpMath for int256;
-    using PerpMath for uint256;
-    using SafeCast for int256;
     using SafeCast for uint256;
-    using SafeMath for uint256;
-    using SignedSafeMath for int256;
     using RBTreeLibrary for RBTreeLibrary.Tree;
 
     struct SwapResponse {

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.7.6;
-pragma abicoder v2;
+pragma solidity >=0.8.0;
 
-import { FixedPoint96 } from "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import { PerpMath } from "./PerpMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPerpdexMarketMinimum } from "../interfaces/IPerpdexMarketMinimum.sol";
@@ -14,7 +12,6 @@ import {
 } from "../../deps/BokkyPooBahsRedBlackTreeLibrary/contracts/BokkyPooBahsRedBlackTreeLibrary.sol";
 
 library MakerOrderBookLibrary {
-    using PerpMath for int256;
     using PerpMath for uint256;
     using SafeCast for int256;
     using SafeCast for uint256;
@@ -56,7 +53,7 @@ library MakerOrderBookLibrary {
     }
 
     function createLimitOrder(PerpdexStructs.AccountInfo storage accountInfo, CreateLimitOrderParams memory params)
-        public
+        external
         returns (uint40 orderId)
     {
         require(accountInfo.limitOrderCount < params.maxOrdersPerAccount, "MOBL_CLO: max order count");
@@ -84,7 +81,7 @@ library MakerOrderBookLibrary {
     }
 
     function cancelLimitOrder(PerpdexStructs.AccountInfo storage accountInfo, CancelLimitOrderParams memory params)
-        public
+        external
         returns (bool isLiquidation)
     {
         isLiquidation = !AccountLibrary.hasEnoughMaintenanceMargin(accountInfo, params.mmRatio);
